@@ -27,7 +27,7 @@ with col_logo:
 
 with col_title:
     st.title("বাইনান্স ফিউচার্স ইন্টেলিজেন্স টার্মিনাল")
-    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance & Arkham*")
+    st.markdown(" `Developed by Mobinul` | *Powered by Binance & Arkham*")
 
 st.divider()
 
