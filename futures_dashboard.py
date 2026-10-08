@@ -71,10 +71,10 @@ def get_all_futures_symbols():
 
 @st.cache_data(ttl=3600)
 def get_global_market_assets():
-    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই একবারে মেমরিতে ক্যাশ করা"""
+    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই এবং Arkham স্লাগ মেমরিতে ক্যাশ করা"""
     cache_map = {}
     
-    # পদ্ধতি ১: CoinGecko টপ কয়েন বাল্ক মেটাডাটা
+    # CoinGecko বাল্ক ডাটা
     for page in [1, 2, 3]:
         try:
             cg_url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={page}&sparkline=false"
@@ -84,13 +84,14 @@ def get_global_market_assets():
                     sym = item.get('symbol', '').upper()
                     if sym:
                         cache_map[sym] = {
+                            'id': item.get('id'), # সঠিক Arkham/Gecko স্লাগ
                             'supply': item.get('circulating_supply'),
                             'maxSupply': item.get('max_supply') or item.get('total_supply')
                         }
         except Exception:
             pass
 
-    # পদ্ধতি ২: CoinCap ব্যাকআপ বাল্ক মেটাডাটা
+    # CoinCap ব্যাকআপ বাল্ক ডাটা
     try:
         cc_url = "https://api.coincap.io/v2/assets?limit=1000"
         r2 = requests.get(cc_url, headers=HEADERS, timeout=5)
@@ -99,6 +100,7 @@ def get_global_market_assets():
                 sym = item.get('symbol', '').upper()
                 if sym and sym not in cache_map:
                     cache_map[sym] = {
+                        'id': item.get('id'),
                         'supply': float(item.get('supply') or 0),
                         'maxSupply': float(item.get('maxSupply') or 0)
                     }
@@ -108,33 +110,33 @@ def get_global_market_assets():
     return cache_map
 
 def extract_tokenomics(clean_sym, market_cache):
-    """সাপ্লাই ও আনলক রেশিও নিশ্চিত করা"""
+    """সাপ্লাই ও আনলক রেশিও হিসাব"""
     item = market_cache.get(clean_sym)
+    slug = clean_sym.lower()
+    
     if item:
+        slug = item.get('id') or clean_sym.lower()
         try:
             supply = float(item.get('supply') or 0)
             max_sup = float(item.get('maxSupply') or 0)
             
             if supply > 0 and max_sup > 0:
                 circ_pct = round((supply / max_sup) * 100, 2)
-                if circ_pct >= 80:
-                    status = "🟢 Low Risk"
-                elif circ_pct <= 35:
-                    status = "🔴 High Dilution"
-                else:
-                    status = "🟡 Moderate"
+                status = "🟢 Low Risk" if circ_pct >= 80 else ("🔴 High Dilution" if circ_pct <= 35 else "🟡 Moderate")
                 return {
                     "Circulating": f"{round(supply/1e6, 2)}M",
                     "Total_Supply": f"{round(max_sup/1e6, 2)}M",
                     "Circ_%": f"{circ_pct}%",
-                    "Unlock_Status": f"{status} ({circ_pct}%)"
+                    "Unlock_Status": f"{status} ({circ_pct}%)",
+                    "slug": slug
                 }
             elif supply > 0:
                 return {
                     "Circulating": f"{round(supply/1e6, 2)}M",
                     "Total_Supply": "Uncapped",
                     "Circ_%": "N/A",
-                    "Unlock_Status": "🟢 No Hard Cap"
+                    "Unlock_Status": "🟢 No Hard Cap",
+                    "slug": slug
                 }
         except Exception:
             pass
@@ -143,7 +145,8 @@ def extract_tokenomics(clean_sym, market_cache):
         "Circulating": "N/A",
         "Total_Supply": "N/A",
         "Circ_%": "N/A",
-        "Unlock_Status": "ℹ️ Verify on Arkham"
+        "Unlock_Status": "ℹ️ Check Details",
+        "slug": slug
     }
 
 def check_sma_retest(symbol, sma_period, interval, max_distance):
@@ -221,8 +224,10 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
             match = check_sma_retest(sym, sma_choice, timeframe, max_dist)
             if match:
                 tokenomics = extract_tokenomics(clean_sym, market_cache)
-                # Arkham-এর সঠিক সার্চ রাউটিং লিঙ্ক (যা যেকোনো কয়েনকে তাৎক্ষণিক খুঁজে পায়)
-                arkham_url = f"https://platform.arkhamintelligence.com/explorer/search?q={clean_sym}"
+                slug_val = tokenomics.pop('slug', clean_sym.lower())
+                
+                # ১০০% কার্যকর Arkham ডিরেক্ট পাথ (যেমন: arkm.com/explorer/token/livepeer)
+                arkham_url = f"https://arkm.com/explorer/token/{slug_val}"
                 
                 match.update(tokenomics)
                 match['Arkham Link'] = arkham_url
