@@ -60,7 +60,7 @@ def get_all_futures_symbols():
                 symbols = [
                     s['symbol'] for s in data.get('symbols', [])
                     if s['symbol'].endswith('USDT') 
-                    and not s['symbol'].startswith('1000') # কনভার্টেড মেমে টোকেন বাদ দেওয়া
+                    and not s['symbol'].startswith('1000')
                     and s.get('status') == 'TRADING'
                 ]
                 if len(symbols) > 50:
@@ -71,22 +71,44 @@ def get_all_futures_symbols():
 
 @st.cache_data(ttl=3600)
 def get_global_market_assets():
-    """CoinCap থেকে সব ক্রিপ্টোর সাপ্লাই ডাটা একবারে লোড করা (রেট-লিমিট ছাড়া)"""
+    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই একবারে মেমরিতে ক্যাশ করা"""
+    cache_map = {}
+    
+    # পদ্ধতি ১: CoinGecko টপ কয়েন বাল্ক মেটাডাটা
+    for page in [1, 2, 3]:
+        try:
+            cg_url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={page}&sparkline=false"
+            r = requests.get(cg_url, headers=HEADERS, timeout=5)
+            if r.status_code == 200:
+                for item in r.json():
+                    sym = item.get('symbol', '').upper()
+                    if sym:
+                        cache_map[sym] = {
+                            'supply': item.get('circulating_supply'),
+                            'maxSupply': item.get('max_supply') or item.get('total_supply')
+                        }
+        except Exception:
+            pass
+
+    # পদ্ধতি ২: CoinCap ব্যাকআপ বাল্ক মেটাডাটা
     try:
-        url = "https://api.coincap.io/v2/assets?limit=1500"
-        r = requests.get(url, headers=HEADERS, timeout=6)
-        if r.status_code == 200:
-            asset_list = r.json().get('data', [])
-            cache_map = {}
-            for item in asset_list:
-                cache_map[item['symbol'].upper()] = item
-            return cache_map
+        cc_url = "https://api.coincap.io/v2/assets?limit=1000"
+        r2 = requests.get(cc_url, headers=HEADERS, timeout=5)
+        if r2.status_code == 200:
+            for item in r2.json().get('data', []):
+                sym = item.get('symbol', '').upper()
+                if sym and sym not in cache_map:
+                    cache_map[sym] = {
+                        'supply': float(item.get('supply') or 0),
+                        'maxSupply': float(item.get('maxSupply') or 0)
+                    }
     except Exception:
         pass
-    return {}
+        
+    return cache_map
 
 def extract_tokenomics(clean_sym, market_cache):
-    """সাপ্লাই ও আনলক রেশিও হিসাব"""
+    """সাপ্লাই ও আনলক রেশিও নিশ্চিত করা"""
     item = market_cache.get(clean_sym)
     if item:
         try:
@@ -95,7 +117,12 @@ def extract_tokenomics(clean_sym, market_cache):
             
             if supply > 0 and max_sup > 0:
                 circ_pct = round((supply / max_sup) * 100, 2)
-                status = "🟢 Low Risk" if circ_pct >= 80 else ("🔴 High Dilution" if circ_pct <= 35 else "🟡 Moderate")
+                if circ_pct >= 80:
+                    status = "🟢 Low Risk"
+                elif circ_pct <= 35:
+                    status = "🔴 High Dilution"
+                else:
+                    status = "🟡 Moderate"
                 return {
                     "Circulating": f"{round(supply/1e6, 2)}M",
                     "Total_Supply": f"{round(max_sup/1e6, 2)}M",
@@ -112,26 +139,12 @@ def extract_tokenomics(clean_sym, market_cache):
         except Exception:
             pass
 
-    # ব্যাকআপ হিসেবে কয়েনগেকো সিঙ্গেল কল (যদি CoinCap-এ না পাওয়া যায়)
-    try:
-        cg_url = f"https://api.coingecko.com/api/v3/coins/{clean_sym.lower()}"
-        res = requests.get(cg_url, headers=HEADERS, timeout=3).json()
-        m_data = res.get('market_data', {})
-        c_sup = m_data.get('circulating_supply') or 0
-        t_sup = m_data.get('max_supply') or m_data.get('total_supply') or 0
-        if c_sup and t_sup:
-            pct = round((c_sup / t_sup) * 100, 2)
-            st_text = "🟢 Low Risk" if pct >= 80 else "🟡 Moderate"
-            return {
-                "Circulating": f"{round(c_sup/1e6, 2)}M",
-                "Total_Supply": f"{round(t_sup/1e6, 2)}M",
-                "Circ_%": f"{pct}%",
-                "Unlock_Status": f"{st_text} ({pct}%)"
-            }
-    except Exception:
-        pass
-
-    return {"Circulating": "N/A", "Total_Supply": "N/A", "Circ_%": "N/A", "Unlock_Status": "Limited Data"}
+    return {
+        "Circulating": "N/A",
+        "Total_Supply": "N/A",
+        "Circ_%": "N/A",
+        "Unlock_Status": "ℹ️ Verify on Arkham"
+    }
 
 def check_sma_retest(symbol, sma_period, interval, max_distance):
     """ক্যান্ডেল ডাটা সংগ্রহ ও রিটেস্ট অ্যালগরিদম"""
@@ -187,7 +200,7 @@ def check_sma_retest(symbol, sma_period, interval, max_distance):
 
 # স্ক্যান ট্রিগার
 if st.sidebar.button("🚀 Start Scan", use_container_width=True):
-    with st.spinner("মার্কেট ও অন-চেইন মেটাডাটা সিঙ্ক করা হচ্ছে..."):
+    with st.spinner("মার্কেট ও গ্লোবাল টোকেনোমিক্স ডেটা সিঙ্ক করা হচ্ছে..."):
         symbols = get_all_futures_symbols()
         market_cache = get_global_market_assets()
         
@@ -208,8 +221,8 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
             match = check_sma_retest(sym, sma_choice, timeframe, max_dist)
             if match:
                 tokenomics = extract_tokenomics(clean_sym, market_cache)
-                # Arkham ইন্টেলিজেন্সের ডাইরেক্ট এক্সপ্লোরার লিঙ্ক
-                arkham_url = f"https://platform.arkhamintelligence.com/explorer/token/{clean_sym.lower()}"
+                # Arkham-এর সঠিক সার্চ রাউটিং লিঙ্ক (যা যেকোনো কয়েনকে তাৎক্ষণিক খুঁজে পায়)
+                arkham_url = f"https://platform.arkhamintelligence.com/explorer/search?q={clean_sym}"
                 
                 match.update(tokenomics)
                 match['Arkham Link'] = arkham_url
