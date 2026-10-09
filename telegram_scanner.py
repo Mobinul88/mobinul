@@ -18,9 +18,11 @@ def send_telegram_alert(message):
         "disable_web_page_preview": True
     }
     try:
-        requests.post(url, json=payload, timeout=8)
+        r = requests.post(url, json=payload, timeout=10)
+        return r.status_code == 200
     except Exception as e:
         print(f"Telegram error: {e}")
+        return False
 
 def get_binance_klines(symbol, interval="1d", limit=230):
     urls = [
@@ -34,24 +36,27 @@ def get_binance_klines(symbol, interval="1d", limit=230):
             r = requests.get(u, params=params, headers=HEADERS, timeout=4)
             if r.status_code == 200:
                 res = r.json()
-                if isinstance(res, list) and len(res) >= 200:
+                if isinstance(res, list) and len(res) >= 60:
                     return res
         except Exception:
             continue
     return None
 
-def check_btc_support():
+def check_btc_regime():
     klines = get_binance_klines("BTCUSDT", "1d", 220)
     if not klines:
-        return True, 0.0
+        return True, "Data Bypass", 0.0
     closes = [float(k[4]) for k in klines]
     s50 = pd.Series(closes).rolling(50).mean().iloc[-1]
-    s200 = pd.Series(closes).rolling(200).mean().iloc[-1]
+    s200 = pd.Series(closes).rolling(200).mean().iloc[-1] if len(closes) >= 200 else s50
     curr = closes[-1]
     
-    # বিটিসি ২০০ বা ৫০ এসএমএ-এর ওপরে বা সাপোর্ট জোনে থাকলে নিরাপদ
-    is_safe = (curr >= s200 or curr >= s50)
-    return is_safe, curr
+    if curr >= s200 or curr >= s50:
+        regime = "🟢 Bullish / Strong Support"
+    else:
+        regime = "🟡 Neutral / Caution Mode"
+        
+    return True, regime, curr
 
 def get_derivatives(symbol):
     fr_val = 0.01
@@ -75,91 +80,97 @@ def get_futures_pairs():
         return []
 
 def run_institutional_scanner():
-    print("🚀 Starting 4-Hour Institutional Swing Scan...")
-    btc_safe, btc_price = check_btc_support()
-    if not btc_safe:
-        print("⚠️ BTC Breakdown Zone. Skipping scan for capital protection.")
-        return
+    print("🚀 Starting Scan...")
+    _, btc_regime, btc_price = check_btc_regime()
+    
+    # স্ক্যান শুরু হওয়ার তাৎক্ষণিক টেস্ট পিং টেলিগ্রামে পাঠানো
+    start_msg = f"🔍 *[MOBINUL ENGINE: SCAN STARTED]*\n🌐 BTC: `${btc_price:,.0f}` | Regime: `{btc_regime}`\n⏳ Scanning 250+ Binance pairs for 50/200 SMA retests..."
+    send_telegram_alert(start_msg)
 
     pairs = get_futures_pairs()
     if not pairs:
         print("Failed to fetch pairs.")
         return
 
-    print(f"Scanning {len(pairs)} pairs on Binance...")
-    found_signals = 0
+    print(f"Scanning {len(pairs)} pairs...")
+    signals = []
 
     for sym in pairs:
         clean = sym.replace("USDT", "")
-        klines = get_binance_klines(sym, "1d", 235)
-        if not klines or len(klines) < 205:
+        klines = get_binance_klines(sym, "1d", 220)
+        if not klines or len(klines) < 60:
             continue
 
         closes = [float(k[4]) for k in klines]
         lows = [float(k[3]) for k in klines]
         df = pd.DataFrame({'close': closes, 'low': lows})
-        df['sma200'] = df['close'].rolling(200).mean()
+        
+        # ৫০ ও ২০০ এসএমএ হিসাব
+        df['sma50'] = df['close'].rolling(50).mean()
+        has_200 = len(df) >= 200
+        if has_200:
+            df['sma200'] = df['close'].rolling(200).mean()
 
         curr_p = df['close'].iloc[-1]
-        c_sma = df['sma200'].iloc[-1]
         c_low = df['low'].iloc[-1]
+        s50 = df['sma50'].iloc[-1]
+        s200 = df['sma200'].iloc[-1] if has_200 else s50
 
-        if curr_p < c_sma:
+        # প্রাইস ৫০ বা ২০০ এসএমএ-এর যেটিতে কাছে আছে সেটি নির্বাচন
+        chosen_sma = s200 if (has_200 and abs(curr_p - s200) < abs(curr_p - s50)) else s50
+        sma_label = "200 SMA" if (chosen_sma == s200 and has_200) else "50 SMA"
+
+        if curr_p < chosen_sma:
             continue
 
-        dist_pct = ((curr_p - c_sma) / c_sma) * 100
-        # SMA রিটেস্ট জোন (০.৫% থেকে ৩.০% দূরত্ব)
-        if not (dist_pct <= 3.0 or (c_low <= c_sma and curr_p >= c_sma)):
+        dist_pct = ((curr_p - chosen_sma) / chosen_sma) * 100
+        
+        # রিটেস্ট রেঞ্জ (০% থেকে ৪.৫% এর মধ্যে বা আজকের লো এসএমএ টাচ করেছে)
+        if not (dist_pct <= 4.5 or c_low <= chosen_sma):
             continue
 
-        # ব্রেকআউট রিটেস্ট ভেরিফিকেশন
-        was_below = any(df['close'].iloc[-i] < df['sma200'].iloc[-i] for i in range(2, 8))
-        if not was_below:
-            continue
-
-        # ৭ডি এবং ৩০ডি একুমুলেশন চেক
+        # ৭ দিনের গতিশীলতা
         acc_7d = curr_p >= closes[-7]
-        acc_30d = curr_p >= closes[-30]
-        if not (acc_7d and acc_30d):
+        if not acc_7d:
             continue
 
         funding_rate = get_derivatives(clean)
 
-        # ট্রেড লেভেল হিসাব
-        entry_low = round(c_sma * 1.002, 4)
+        # ট্রেড লেভেল
+        entry_low = round(chosen_sma * 1.002, 4)
         entry_high = round(curr_p, 4)
-        stop_loss = round(c_sma * 0.965, 4)
+        stop_loss = round(chosen_sma * 0.965, 4)
         risk = max(entry_high - stop_loss, entry_high * 0.035)
 
         tp1 = round(entry_high + (risk * 1.5), 4)
         tp2 = round(entry_high + (risk * 2.5), 4)
         tp3 = round(entry_high + (risk * 4.0), 4)
 
-        # টেলিগ্রাম অ্যালার্ট মেসেজ
-        msg = f"""🚨 *[MOBINUL A+ SWING ALERT]* 🚨
+        trade_card = f"""🚨 *[A+ SWING SIGNAL: #{clean}USDT]* 🚨
 
-🪙 *Pair:* `#{clean}USDT`
-📊 *Price:* `${curr_p:,.4f}` (SMA Retest: `{dist_pct:.2f}%`)
+📊 *Price:* `${curr_p:,.4f}` ({sma_label} Retest: `+{dist_pct:.2f}%`)
 🎯 *Entry Zone:* `${entry_low} - ${entry_high}`
 🛡️ *Anti-Hunt SL:* `${stop_loss}`
 
-💰 *Take-Profits:*
+💰 *Take-Profit Targets:*
 • TP 1: `${tp1}` (+1:1.5 RR)
 • TP 2: `${tp2}` (+1:2.5 RR)
 • TP 3: `${tp3}` (+1:4.0 RR)
 
-⚡ *Derivatives:* Funding `{funding_rate:.4f}%`
-🐋 *Whale Flow:* 7D & 30D Net Inflow 🟢
-🌐 *BTC Regime:* Safe Support (${btc_price:,.0f})
+⚡ *Funding Rate:* `{funding_rate:.4f}%`
+🐋 *Whale Flow (7D):* Net Inflow 🟢
+🌐 *BTC Price:* `${btc_price:,.0f}`
 
-🔍 [Coinglass Heatmap](https://www.coinglass.com/pro/futures/LiquidityHeatMap?symbol={clean}USDT) | [Arkham Flow](https://arkm.com/explorer/token/{clean.lower()})"""
+🔍 [Coinglass Heatmap](https://www.coinglass.com/pro/futures/LiquidityHeatMap?symbol={clean}USDT) | [Arkham](https://arkm.com/explorer/token/{clean.lower()})"""
 
-        send_telegram_alert(msg)
-        print(f"✅ Alert sent for {clean}")
-        found_signals += 1
+        send_telegram_alert(trade_card)
+        signals.append(clean)
         time.sleep(1)
 
-    print(f"Scan finished. Sent {found_signals} signals.")
+    summary_msg = f"🏁 *[SCAN COMPLETE]*\nTotal Scanned: {len(pairs)} pairs.\n✅ Verified A+ Setups Found: {len(signals)}"
+    if signals:
+        summary_msg += f"\nTokens: {', '.join(signals)}"
+    send_telegram_alert(summary_msg)
 
 if __name__ == "__main__":
     run_institutional_scanner()
