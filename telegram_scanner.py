@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import time
 
-BOT_TOKEN = "8968950600:AAEF8nDDEYMYmDQQe59Yoi70dqwUkQZTL0k"
+BOT_TOKEN = "8968950600:AAEF8nDDEYMYmDQQe59Yoi70dqWuKQZTL0k"
 CHAT_ID = "8605377336"
 
 HEADERS = {
