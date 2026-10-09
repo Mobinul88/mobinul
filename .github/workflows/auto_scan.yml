@@ -1,0 +1,26 @@
+name: 4-Hour Auto Swing Alert Engine
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # প্রতি ৪ ঘণ্টা পর পর রান হবে
+  workflow_dispatch:        # যেকোনো সময় ম্যানুয়ালি রান করার জন্য বাটন
+
+jobs:
+  run-scanner:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests pandas
+
+      - name: Run Telegram Scanner
+        run: |
+          python telegram_scanner.py
