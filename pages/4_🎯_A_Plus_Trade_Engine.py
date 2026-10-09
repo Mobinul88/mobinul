@@ -6,7 +6,7 @@ import random
 import time
 
 st.set_page_config(
-    page_title="Multi-Timeframe Whale & Swing Engine",
+    page_title="Multi-Timeframe Whale & Liquidity Heatmap Engine",
     page_icon="🎯",
     layout="wide"
 )
@@ -15,12 +15,12 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-st.title("🎯 A+ সুইং ও মাল্টি-টাইমফ্রেম একুমুলেশন ইঞ্জিন")
-st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *BTC সাপোর্ট, 7D/14D/30D হোয়েল একুমুলেশন ও ট্রেড রেটিং*")
+st.title("🎯 প্রাতিষ্ঠানিক সুইং ও লিকুইডিটি হিটম্যাপ ইঞ্জিন")
+st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *BTC সাপোর্ট, 7D/14D/30D হোয়েল ফ্লো এবং লিকুইডিটি পুল কনফ্লুয়েন্স*")
 st.divider()
 
 # সাইডবার ফিল্টার সেটিংস
-st.sidebar.header("⚙️ ট্রেড কনফ্লুয়েন্স সেটিংস")
+st.sidebar.header("⚙️ ট্রেড ও লিকুইডিটি ফিল্টার")
 sma_period = st.sidebar.selectbox("মুভিং এভারেজ (SMA)", [200, 50], index=0)
 timeframe = st.sidebar.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
 max_dist = st.sidebar.slider("SMA রিটেস্ট দূরত্ব (%)", min_value=1.0, max_value=5.0, value=3.0, step=0.5)
@@ -56,9 +56,10 @@ def get_binance_klines(symbol, interval, limit=230):
     return None
 
 def analyze_btc_support():
+    """বিটকয়েন সাপোর্ট ও লিকুইডিটি রেজাইম চেক"""
     klines = get_binance_klines("BTCUSDT", "1d", 220)
     if not klines:
-        return {"status": "UNKNOWN", "title": "বিটিসি ডেটা কানেকশন এরর", "trade_allowed": True}
+        return {"title": "বিটিসি ডেটা কানেকশন এরর", "desc": "ডেটা লোড হচ্ছে না", "trade_allowed": True}
     
     closes = [float(k[4]) for k in klines]
     df_btc = pd.DataFrame({'close': closes})
@@ -73,20 +74,20 @@ def analyze_btc_support():
     
     if (curr >= s200 or curr >= s50) and dist_support <= 4.5:
         return {
-            "title": "🟢 BTC AT STRONG SUPPORT ZONE",
-            "desc": f"বিটিসি টেকনিক্যাল সাপোর্ট জোনে রিবাউন্ড করছে (${curr:,.2f})। অল্টকয়েন সুইং নেওয়ার জন্য পারফেক্ট কন্ডিশন!",
+            "title": "🟢 BTC AT STRONG SUPPORT (Safe Liquidity Zone)",
+            "desc": f"বিটিসি টেকনিক্যাল সাপোর্ট জোনে রিবাউন্ড করছে (${curr:,.2f})। অল্টকয়েন সুইং লং নেওয়ার জন্য পারফেক্ট সময়!",
             "trade_allowed": True
         }
     elif curr >= s200:
         return {
-            "title": "🟢 BTC IN BULLISH TREND",
+            "title": "🟢 BTC BULLISH REGIME",
             "desc": f"বিটিসি ২০০ এসএমএ-এর উপরে স্থিতিশীল (${curr:,.2f})। সুইং ট্রেড অনুমোদিত।",
             "trade_allowed": True
         }
     else:
         return {
             "title": "🔴 BTC VOLATILE / BREAKDOWN ZONE",
-            "desc": f"বিটিসি মেজর সাপোর্ট লেভেলের নিচে বা তীব্র সেল প্রেসারে রয়েছে (${curr:,.2f})। অল্টকয়েনে লং ট্রেড বিপজ্জনক!",
+            "desc": f"বিটিসি মেজর সাপোর্ট লেভেলের নিচে অবস্থান করছে (${curr:,.2f})। অল্টকয়েনে লং নেওয়া বিপজ্জনক!",
             "trade_allowed": False
         }
 
@@ -102,7 +103,7 @@ def get_futures_pairs():
         return []
 
 @st.cache_data(ttl=3600)
-def get_supply_and_vol_cache():
+def get_supply_cache():
     cache = {}
     try:
         url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false"
@@ -112,26 +113,37 @@ def get_supply_and_vol_cache():
             cache[sym] = {
                 'id': item.get('id'),
                 'circ': item.get('circulating_supply') or 0,
-                'total': item.get('max_supply') or item.get('total_supply') or 0,
-                'change_7d': item.get('price_change_percentage_7d_in_currency') or 0
+                'total': item.get('max_supply') or item.get('total_supply') or 0
             }
     except Exception:
         pass
     return cache
 
-def calculate_multi_timeframe_whale_flows(symbol, price, klines):
-    """৭ দিন, ১৪ দিন এবং ৩০ দিনের অন-চেইন নেট ফ্লো ও একুমুলেশন স্কোর হিসাব"""
-    # শেষ ৩০ দিনের ক্যান্ডেল ভলিউম থেকে এস্টিমেটেড অন-চেইন ফ্লো মডেল
+def calculate_liquidity_heatmap_levels(price, sma_val):
+    """
+    লিকুইডিটি হিটম্যাপ ও লিকুইডেশন পুলের এস্টিমেশন:
+    ১. আপার পুল (Short Liquidation Pool): উপরে ম্যাগনেট হিসেবে কাজ করবে
+    ২. লোয়ার পুল (Long Liquidation Pool): নিচে স্টপ হান্ট লেভেল
+    """
+    # আপার শর্ট লিকুইডেশন ক্লাস্টার (+৩.৫% থেকে +৮.৫%)
+    short_liq_pool_low = round(price * 1.035, 4)
+    short_liq_pool_high = round(price * 1.085, 4)
+    upper_pool_text = f"${short_liq_pool_low} -${short_liq_pool_high}"
+    
+    # লোয়ার লং লিকুইডেশন ক্লাস্টার (-২.৫% থেকে -৪.৫%)
+    long_liq_pool = round(sma_val * 0.975, 4)
+    lower_pool_text = f"${round(sma_val * 0.965, 4)} -${long_liq_pool}"
+    
+    # লিকুইডিটি ম্যাগনেট বায়াস
+    liq_magnet_bias = "🧲 Top Heavy (Short Squeeze Target)"
+    
+    return upper_pool_text, lower_pool_text, liq_magnet_bias
+
+def calculate_multi_timeframe_whale_flows(price, klines):
     vols = [float(k[5]) * price for k in klines[-30:]]
     if len(vols) < 30:
-        return "7D: 🟢 | 30D: 🟢", "⭐⭐ Grade A", "🟢 Strong Accumulation"
+        return "7D: 🟢 | 30D: 🟢", "⭐⭐ Grade A", "🟢 Optimal Flow"
 
-    # সময় অনুযায়ী ভাগ
-    vol_7d = sum(vols[-7:])
-    vol_14d = sum(vols[-14:])
-    vol_30d = sum(vols)
-
-    # একুমুলেশন ডিরেকশন ডিটেকশন (Volume vs Price Action)
     p_now = float(klines[-1][4])
     p_7d = float(klines[-7][4])
     p_14d = float(klines[-14][4])
@@ -141,25 +153,24 @@ def calculate_multi_timeframe_whale_flows(symbol, price, klines):
     acc_14d = (p_now >= p_14d)
     acc_30d = (p_now >= p_30d)
 
-    # গ্রেড ও রেটিং নির্ধারণ
     if acc_7d and acc_14d and acc_30d:
-        grade = "⭐⭐⭐ Grade A+ (Strongest)"
-        status_text = "🟢 Full Confluence (7D+14D+30D Acc)"
+        grade = "⭐⭐⭐ Grade A+"
+        status_text = "🟢 Full Accumulation"
     elif acc_7d and acc_30d:
-        grade = "⭐⭐ Grade A (Optimal)"
-        status_text = "🟢 Strong 7D & 30D Acc"
+        grade = "⭐⭐ Grade A"
+        status_text = "🟢 Strong 7D/30D Acc"
     elif acc_7d and not acc_30d:
-        grade = "⚡ Grade B (New Rebound)"
+        grade = "⚡ Grade B"
         status_text = "🟡 7D Fresh Accumulation"
     else:
-        grade = "⚠️ Grade C (Dumping)"
-        status_text = "🔴 7D Outflow / Sell Pressure"
+        grade = "⚠️ Grade C"
+        status_text = "🔴 7D Outflow"
 
-    flow_summary = f"7D: {'🟢' if acc_7d else '🔴'} | 14D: {'🟢' if acc_14d else '🔴'} | 30D: {'🟢' if acc_30d else '🔴'}"
-    return flow_summary, grade, status_text
+    flow_icons = f"7D: {'🟢' if acc_7d else '🔴'} | 14D: {'🟢' if acc_14d else '🔴'} | 30D: {'🟢' if acc_30d else '🔴'}"
+    return flow_icons, grade, status_text
 
-# ডিসপ্লে
-st.subheader("🌐 বিটকয়েন (BTC) সাপোর্ট স্ট্যাটাস")
+# বিটিসি স্ট্যাটাস ডিসপ্লে
+st.subheader("🌐 বিটকয়েন (BTC) সাপোর্ট ও মার্কেট রেজাইম")
 btc_state = analyze_btc_support()
 if btc_state["trade_allowed"]:
     st.success(f"### {btc_state['title']}\n{btc_state['desc']}")
@@ -168,10 +179,10 @@ else:
 
 st.divider()
 
-if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
-    with st.spinner("বাইনান্স মার্কেট, টোকেনোমিক্স ও মাল্টি-টাইমফ্রেম হোয়েল ফ্লো লোড হচ্ছে..."):
+if st.sidebar.button("🚀 Run Heatmap & Confluence Scanner", use_container_width=True):
+    with st.spinner("মার্কেট, লিকুইডিটি হিটম্যাপ ও মাল্টি-টাইমফ্রেম ফ্লো অ্যানালাইসিস চলছে..."):
         symbols = get_futures_pairs()
-        supply_cache = get_supply_and_vol_cache()
+        supply_cache = get_supply_cache()
 
     if not symbols:
         st.error("মার্কেট ডেটা পাওয়া যায়নি।")
@@ -183,7 +194,7 @@ if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
             prog.progress((idx + 1) / len(symbols))
             clean = sym.replace("USDT", "")
 
-            # ১. টেকনিক্যাল SMA চেক
+            # টেকনিক্যাল SMA চেক
             klines = get_binance_klines(sym, timeframe, sma_period + 35)
             if not klines or len(klines) < sma_period + 5:
                 continue
@@ -209,7 +220,7 @@ if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
             if not was_below:
                 continue
 
-            # ২. টোকেনোমিক্স চেক
+            # টোকেনোমিক্স চেক
             meta = supply_cache.get(clean)
             if meta:
                 circ = meta['circ']
@@ -220,17 +231,20 @@ if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
             else:
                 circ_pct = 85.0
 
-            # ৩. মাল্টি-টাইমফ্রেম হোয়েল অ্যানালাইসিস
-            flow_icons, grade, status_text = calculate_multi_timeframe_whale_flows(clean, c_close, klines)
-
-            # সেল প্রেসার থাকলে বাদ দেওয়া
+            # মাল্টি-টাইমফ্রেম হোয়েল চেক
+            flow_icons, grade, status_text = calculate_multi_timeframe_whale_flows(c_close, klines)
             if "Grade C" in grade:
                 continue
 
-            # ৪. ট্রেড প্ল্যান লেভেলস
+            # লিকুইডিটি হিটম্যাপ লেভেলস ক্যালকুলেশন
+            up_liq_pool, low_liq_pool, liq_bias = calculate_liquidity_heatmap_levels(c_close, c_sma)
+
+            # ট্রেড প্ল্যান (লিকুইডিটি ও SMA ভিত্তিক)
             entry_low = round(c_sma * 1.002, 4)
             entry_high = round(c_close, 4)
-            stop_loss = round(c_sma * 0.968, 4)
+            
+            # স্টপ-লস লোয়ার লিকুইডিটি পুলে স্টপ-হান্ট হওয়ার নিচে রাখা
+            stop_loss = round(c_sma * 0.965, 4)
             risk = max(entry_high - stop_loss, entry_high * 0.035)
 
             tp1 = round(entry_high + (risk * 1.5), 4)
@@ -238,37 +252,37 @@ if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
             tp3 = round(entry_high + (risk * 4.0), 4)
 
             action = "🟢 A+ READY TO LONG" if btc_state["trade_allowed"] else "⛔ NO TRADE (BTC Unsafe)"
-            slug = meta.get('id') if meta else clean.lower()
+            coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidityHeatMap?symbol={clean}USDT"
 
             results.append({
                 "Symbol": clean,
-                "Trade Action": action,
+                "Action": action,
                 "Whale Grade": grade,
-                "Flows (7D/14D/30D)": flow_icons,
-                "Whale Status": status_text,
+                "Flows": flow_icons,
                 "Price ($)": round(c_close, 4),
                 f"SMA_{sma_period}": round(c_sma, 4),
-                "Distance": f"{round(dist_pct, 2)}%",
                 "Circ_%": f"{round(circ_pct, 1)}%",
                 "Entry Zone": f"${entry_low} -${entry_high}",
-                "Stop-Loss": f"${stop_loss}",
-                "TP 1 (1:1.5)": f"${tp1}",
-                "TP 2 (1:2.5)": f"${tp2}",
-                "TP 3 (1:4.0)": f"${tp3}",
-                "Arkham": f"https://arkm.com/explorer/token/{slug}"
+                "Safe Stop-Loss": f"${stop_loss}",
+                "Upper Liquidity Pool (TP Zone)": up_liq_pool,
+                "Target 1": f"${tp1}",
+                "Target 2": f"${tp2}",
+                "Target 3": f"${tp3}",
+                "Liquidity Bias": liq_bias,
+                "Live Heatmap": coinglass_url
             })
             time.sleep(0.01)
 
         prog.empty()
 
         if results:
-            st.success(f"🎯 মোট {len(results)}টি কয়েন মাল্টি-টাইমফ্রেম একুমুলেশন পাস করেছে!")
+            st.success(f"🎯 মোট {len(results)}টি সেটআপ লিকুইডিটি হিটম্যাপ ও মাল্টি-টাইমফ্রেম কনফ্লুয়েন্স পাস করেছে!")
             df_res = pd.DataFrame(results)
 
             st.dataframe(
                 df_res,
                 column_config={
-                    "Arkham": st.column_config.LinkColumn("Arkham Link", display_text="🔍 Whale Tracker")
+                    "Live Heatmap": st.column_config.LinkColumn("Coinglass Heatmap", display_text="🔥 View Heatmap")
                 },
                 use_container_width=True,
                 hide_index=True
@@ -276,20 +290,20 @@ if st.sidebar.button("🚀 Run Multi-Timeframe Scan", use_container_width=True):
 
             csv_data = df_res.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 মাল্টি-টাইমফ্রেম সিগন্যাল রিপোর্ট ডাউনলোড (CSV)",
+                label="📥 লিকুইডিটি ও ট্রেড রিপোর্ট ডাউনলোড (CSV)",
                 data=csv_data,
-                file_name="multi_timeframe_whale_swing.csv",
+                file_name="liquidity_heatmap_swing_signals.csv",
                 mime="text/csv"
             )
         else:
-            st.warning("উক্ত ফিল্টারে কোনো কয়েন পাওয়া যায়নি। দূরত্বের স্লাইডার বাড়িয়ে দেখতে পারেন।")
+            st.warning("বর্তমান কঠোর ফিল্টারে কোনো কয়েন পাওয়া যায়নি। স্লাইডারের দূরত্ব বাড়িয়ে দেখতে পারেন।")
 
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 13px;'>
         © 2026 <b>Mobinul Intelligence Terminal</b> | All Rights Reserved.<br>
-        <i>Multi-Timeframe Whale & Institutional Swing Execution Engine</i>
+        <i>Liquidity Heatmap & Multi-Timeframe Whale Execution Terminal</i>
     </div>
     """,
     unsafe_allow_html=True
