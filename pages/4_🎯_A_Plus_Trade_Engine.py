@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import requests
-import datetime
-import time
 
 st.set_page_config(
     page_title="Master Confluence Terminal",
@@ -15,10 +13,9 @@ HEADERS = {
 }
 
 st.title("🎯 মাস্টার ট্রেড কনফ্লুয়েন্স ও অল-ইন-ওয়ান অডিট ইঞ্জিন")
-st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *বিটিসি সাপোর্ট, SMA রিটেস্ট, টোকেনোমিক্স, হোয়েল ফ্লো ও লিকুইডিটি হিটম্যাপ ম্যাপিং*")
+st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *বিটিসি সাপোর্ট, SMA রিটেস্ট, টোকেনোমিক্স, হোয়েল ফ্লো ও লিকুইডিটি হিটম্যাপ*")
 st.divider()
 
-# ১. বিটকয়েন মার্কেট রেজাইম ইঞ্জিন
 def get_binance_klines(symbol, interval, limit=230):
     urls = [
         "https://data-api.binance.vision/api/v3/klines",
@@ -31,7 +28,7 @@ def get_binance_klines(symbol, interval, limit=230):
             r = requests.get(u, params=params, headers=HEADERS, timeout=4)
             if r.status_code == 200:
                 res = r.json()
-                if isinstance(res, list) and len(res) >= limit - 25:
+                if isinstance(res, list) and len(res) >= 200:
                     return res
         except Exception:
             continue
@@ -75,7 +72,7 @@ def analyze_btc_support():
             "price": curr
         }
 
-# বিটিসি স্ট্যাটাস ডিসপ্লে
+# ১. বিটিসি স্ট্যাটাস ডিসপ্লে
 btc_state = analyze_btc_support()
 if btc_state["trade_allowed"]:
     st.success(f"### {btc_state['title']}\n{btc_state['desc']}")
@@ -84,7 +81,7 @@ else:
 
 st.divider()
 
-# ২. কয়েনগেকো টোকেনোমিক্স ও মেটাডাটা ক্যাশ
+# ২. টোকেনোমিক্স ও মেটাডাটা
 @st.cache_data(ttl=1800)
 def get_token_metadata(symbol):
     try:
@@ -114,30 +111,28 @@ def get_token_metadata(symbol):
     except Exception:
         return None
 
-# ৩. কাস্টম কয়েন সার্চ ইনপুট (মূল কনফ্লুয়েন্স অডিট বক্স)
-st.subheader("🔍 নির্দিষ্ট কয়েন কনফ্লুয়েন্স অডিট (Instant Multi-Page Verification)")
-st.caption("আপনার মূল ড্যাশবোর্ডে ৫০ বা ২০০ এসএমএ-তে আসা কয়েনটির নাম এখানে লিখুন:")
+# ৩. সার্চ বক্স
+st.subheader("🔍 নির্দিষ্ট কয়েন কনফ্লুয়েন্স অডিট (Multi-Page Verification)")
+st.caption("মূল ড্যাশবোর্ডে ৫০ বা ২০০ এসএমএ-তে আসা যে কয়েনটি অডিট করতে চান, তার সিম্বল দিন:")
 
 col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
 with col_s1:
-    search_token = st.text_input("কয়েনের সিম্বল লিখুন (যেমন: LPT, ARKM, ATOM, FET, SOL, TRX):", value="LPT").strip().upper()
+    search_token = st.text_input("কয়েনের সিম্বল (যেমন: LPT, ARKM, ATOM, FET, SOL, TRX):", value="LPT").strip().upper()
 with col_s2:
-    selected_sma = st.selectbox("কোন SMA দিয়ে চেক করবেন?", [200, 50], index=0)
+    selected_sma = st.selectbox("মুভিং এভারেজ (SMA)", [200, 50], index=0)
 with col_s3:
     selected_tf = st.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
 
 if search_token:
-    with st.spinner(f"{search_token}-এর জন্য সব পেজের ডাটা সিঙ্ক ও কনফ্লুয়েন্স অডিট চলছে..."):
+    with st.spinner(f"{search_token}-এর সমস্ত পেজের ডেটা সিঙ্ক ও কনফ্লুয়েন্স অডিট চলছে..."):
         klines = get_binance_klines(f"{search_token}USDT", selected_tf, selected_sma + 35)
         meta = get_token_metadata(search_token)
 
-    if not klines or len(klines) < selected_sma + 5:
-        st.error(f"'{search_token}USDT' পেয়ারটির পর্যাপ্ত ক্যান্ডেলস্টিক ডাটা পাওয়া যায়নি। বাইনান্স ফিউচার্স পেয়ারের সঠিক সিম্বল দিন।")
+    if not klines or len(klines) < (selected_sma + 5):
+        st.error(f"'{search_token}USDT' পেয়ারটির ক্যান্ডেলস্টিক ডেটা পাওয়া যায়নি। অনুগ্রহ করে সঠিক সিম্বল দিন।")
     else:
-        # টেকনিক্যাল হিসাব
         closes = [float(k[4]) for k in klines]
         lows = [float(k[3]) for k in klines]
-        vols = [float(k[5]) for k in klines]
         
         df_coin = pd.DataFrame({'close': closes, 'low': lows})
         df_coin['sma'] = df_coin['close'].rolling(selected_sma).mean()
@@ -146,11 +141,10 @@ if search_token:
         sma_val = df_coin['sma'].iloc[-1]
         dist_pct = ((curr_p - sma_val) / sma_val) * 100
         
-        # টোকেনোমিক্স
         circ_pct = meta['circ_pct'] if meta else 85.0
         c_status = "🟢 Low Risk (Safe)" if circ_pct >= 80 else ("🔴 High Dilution" if circ_pct <= 35 else "🟡 Moderate")
         
-        # মাল্টি-টাইমফ্রেম হোয়েল একুমুলেশন
+        # হোয়েল একুমুলেশন হিসাব
         p_7d = closes[-7]
         p_14d = closes[-14]
         p_30d = closes[-30] if len(closes) >= 30 else closes[0]
@@ -162,15 +156,15 @@ if search_token:
         if acc_7d and acc_14d and acc_30d:
             w_grade = "⭐⭐⭐ Grade A+ (Strongest Accumulation)"
         elif acc_7d and acc_30d:
-            w_grade = "⭐⭐ Grade A (Optimal Smart Money Flow)"
+            w_grade = "⭐⭐ Grade A (Optimal Flow)"
         elif acc_7d:
             w_grade = "⚡ Grade B (Fresh 7D Rebound)"
         else:
-            w_grade = "⚠️ Grade C (Whale Distribution / Dump)"
+            w_grade = "⚠️ Grade C (Whale Distribution)"
             
         flow_metric = f"7D: {'🟢' if acc_7d else '🔴'} | 14D: {'🟢' if acc_14d else '🔴'} | 30D: {'🟢' if acc_30d else '🔴'}"
 
-        # লিকুইডিটি হিটম্যাপ পুল
+        # লিকুইডিটি হিটম্যাপ ক্লাস্টার
         short_liq_pool = f"${round(curr_p * 1.035, 4)} -${round(curr_p * 1.075, 4)}"
         safe_sl = round(sma_val * 0.965, 4)
         entry_zone = f"${round(sma_val * 1.002, 4)} -${round(curr_p, 4)}"
@@ -180,7 +174,6 @@ if search_token:
         tp2 = round(curr_p + (risk * 2.5), 4)
         tp3 = round(curr_p + (risk * 4.0), 4)
 
-        # ফাইনাল ট্রেড সিদ্ধান্ত
         trade_verdict = "🟢 A+ READY TO LONG" if (btc_state["trade_allowed"] and curr_p >= sma_val and "Grade C" not in w_grade) else "⛔ NO TRADE (Risky Setup)"
 
         # ৪টি বড় স্ট্যাটাস কার্ড
@@ -208,7 +201,6 @@ if search_token:
         
         st.table(pd.DataFrame(audit_rows))
 
-        # ডিরেক্ট এক্সপ্লোরার লিঙ্ক
         c_link1, c_link2 = st.columns(2)
         with c_link1:
             ark_slug = meta['id'] if meta else search_token.lower()
