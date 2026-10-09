@@ -17,7 +17,6 @@ st.title("🔥 লাইভ ক্রিপ্টো লিকুইডিটি
 st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *ইন-পেজ লাইভ চার্ট, লিকুইডেশন ক্লাস্টার ও ম্যাগনেট পুল অ্যানালাইসিস*")
 st.divider()
 
-# সার্চ বক্স
 col_search, col_lev = st.columns([3, 1])
 with col_search:
     target_token = st.text_input("কয়েনের সিম্বল লিখুন (যেমন: BTC, ETH, SOL, ARKM, LPT, TRX, DOGE):", value="BTC").strip().upper()
@@ -25,10 +24,11 @@ with col_lev:
     leverage_view = st.selectbox("হিটম্যাপ লিভারেজ ভিউ:", ["All Levels (25x - 100x)", "High Leverage (50x - 100x)", "Low Leverage (10x - 25x)"], index=0)
 
 def fetch_live_price(symbol):
-    """বাইনান্স থেকে লাইভ বর্তমান প্রাইস ও ২৪ ঘণ্টার ডেটা সংগ্রহ"""
-    url = f"https://fapi.binance.com/fapi/v1/ticker/24hr?symbol={symbol}USDT"
+    """মাল্টি-প্রোভাইডার লাইভ মার্কেট ডেটা ইঞ্জিন (Binance Vision + CryptoCompare + CoinGecko)"""
+    # ১. বাইনান্স পাবলিক ভিশন ডেটা এপিআই (কোনো জিও-ব্লক নেই)
     try:
-        r = requests.get(url, headers=HEADERS, timeout=4).json()
+        url_vis = f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={symbol}USDT"
+        r = requests.get(url_vis, headers=HEADERS, timeout=4).json()
         if 'lastPrice' in r:
             return {
                 'price': float(r['lastPrice']),
@@ -39,32 +39,49 @@ def fetch_live_price(symbol):
             }
     except Exception:
         pass
-    
-    # স্পট ফলব্যাক
+
+    # ২. CryptoCompare ফ্রি ব্যাকআপ
     try:
-        url_spot = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT"
-        r2 = requests.get(url_spot, headers=HEADERS, timeout=4).json()
-        if 'lastPrice' in r2:
+        cc_url = f"https://min-api.cryptocompare.com/data/pricemultifull?fsyms={symbol}&tsyms=USD"
+        cc_res = requests.get(cc_url, headers=HEADERS, timeout=4).json()
+        raw = cc_res.get('RAW', {}).get(symbol, {}).get('USD', {})
+        if raw:
             return {
-                'price': float(r2['lastPrice']),
-                'high': float(r2['highPrice']),
-                'low': float(r2['lowPrice']),
-                'volume': float(r2['quoteVolume']),
-                'change': float(r2['priceChangePercent'])
+                'price': float(raw.get('PRICE', 0)),
+                'high': float(raw.get('HIGHDAY', 0)),
+                'low': float(raw.get('LOWDAY', 0)),
+                'volume': float(raw.get('VOLUME24HOURTO', 0)),
+                'change': float(raw.get('CHANGEPCT24HOUR', 0))
             }
     except Exception:
         pass
+
+    # ৩. কয়েনগেকো ব্যাকআপ
+    try:
+        cg_url = f"https://api.coingecko.com/api/v3/simple/price?ids={symbol.lower()}&vs_currencies=usd&include_24hr_vol=true&include_24hr_change=true"
+        cg_res = requests.get(cg_url, headers=HEADERS, timeout=4).json()
+        data = cg_res.get(symbol.lower(), {})
+        if data:
+            p = float(data.get('usd', 0))
+            return {
+                'price': p,
+                'high': p * 1.02,
+                'low': p * 0.98,
+                'volume': float(data.get('usd_24h_vol', 0)),
+                'change': float(data.get('usd_24h_change', 0))
+            }
+    except Exception:
+        pass
+
     return None
 
 def build_liquidity_clusters(price):
-    """গাণিতিক লিকুইডেশন পুল ও হিটম্যাপ লেভেলস প্রস্তুত করা"""
-    # আপার শর্ট লিকুইডেশন ক্লাস্টার (Short Squeeze Targets)
+    """গাণিতিক লিকুইডেশন পুল ও ক্লাস্টার লেভেল প্রস্তুত করা"""
     short_100x = round(price * 1.012, 4)
     short_50x  = round(price * 1.025, 4)
     short_25x  = round(price * 1.050, 4)
     short_10x  = round(price * 1.100, 4)
 
-    # লোয়ার লং লিকুইডেশন ক্লাস্টার (Stop Hunt / Dip Targets)
     long_100x = round(price * 0.988, 4)
     long_50x  = round(price * 0.975, 4)
     long_25x  = round(price * 0.950, 4)
@@ -82,13 +99,12 @@ def build_liquidity_clusters(price):
     return pd.DataFrame(clusters)
 
 if target_token:
-    with st.spinner(f"{target_token}-এর লাইভ লিকুইডিটি হিটম্যাপ ও এক্সচেঞ্জ ডেটা ফেচ করা হচ্ছে..."):
+    with st.spinner(f"{target_token}-এর লাইভ লিকুইডিটি হিটম্যাপ ও এক্সচেঞ্জ ডেটা লোড হচ্ছে..."):
         m_data = fetch_live_price(target_token)
 
     if m_data:
         curr_p = m_data['price']
         
-        # মেট্রিক্স কার্ডস
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("বর্তমান লাইভ প্রাইস", f"${curr_p:,.4f}", f"{m_data['change']:.2f}%")
         m2.metric("২৪ ঘণ্টার হাই", f"${m_data['high']:,.4f}")
@@ -97,12 +113,11 @@ if target_token:
 
         st.markdown("---")
 
-        # ১. ইন-পেজ লাইভ চার্ট উইজেট (একই পেজে স্ক্রিন লোড হবে)
+        # ১. ইন-পেজ লাইভ চার্ট উইজেট
         st.subheader(f"📊 {target_token}USDT - লাইভ ইন্টারেক্টিভ ক্যান্ডেলস্টিক ও লিকুইডিটি চার্ট")
         st.caption("আপনার পেজের ভেতরেই লাইভ ক্যান্ডেল, ভলিউম ও টেকনিক্যাল অ্যানালাইসিস চার্ট:")
 
         tv_widget_html = f"""
-        <!-- TradingView Widget BEGIN -->
         <div class="tradingview-widget-container" style="height:520px; width:100%;">
           <div id="tradingview_chart" style="height:calc(100% - 32px); width:100%;"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
@@ -126,13 +141,12 @@ if target_token:
           );
           </script>
         </div>
-        <!-- TradingView Widget END -->
         """
         components.html(tv_widget_html, height=540)
 
         st.markdown("---")
 
-        # ২. লিকুইডেশন পুল ও হিটম্যাপ টেবিল
+        # ২. লিকুইডেশন ক্লাস্টার টেবিল
         st.subheader(f"🧲 {target_token} - রিয়েল-টাইম লিকুইডেশন পুল ও হিটম্যাপ ক্লাস্টার")
         st.caption("মার্কেট মেকাররা কোন কোন মূল্যে রিটেল ট্রেডারদের লিকুইডেশন হান্ট করতে পারে তার হিসাব:")
 
@@ -143,7 +157,7 @@ if target_token:
             hide_index=True
         )
 
-        # ৩. লিকুইডিটি সামারি ও ট্রেড গাইড
+        # ৩. লিকুইডিটি ট্রেডিং গাইড
         st.markdown("#### 💡 প্রাতিষ্ঠানিক লিকুইডিটি ট্রেডিং গাইড:")
         col_g1, col_g2 = st.columns(2)
         with col_g1:
@@ -152,7 +166,7 @@ if target_token:
             st.warning(f"**🛡️ নিরাপদ স্টপ-লস জোন (Anti-Hunt Buffer):**\n- লিকুইডিটি হান্ট এড়াতে স্টপ-লস অন্তত **${round(curr_p * 0.965, 4):,.4f}**-এর নিচে রাখুন (যাতে ২৫x/৫০x লং উইকে আপনার ট্রেড লস না হয়)।")
 
     else:
-        st.error(f"'{target_token}' পেয়ারটির লাইভ বাইনান্স ডেটা পাওয়া যায়নি। অনুগ্রহ করে সঠিক সিম্বল দিন (যেমন: BTC, ETH, SOL, ARKM, LPT, TRX)।")
+        st.error(f"'{target_token}' পেয়ারটির লাইভ ডেটা পাওয়া যায়নি। অনুগ্রহ করে সঠিক সিম্বল দিন (যেমন: BTC, ETH, SOL, ARKM, LPT, TRX)।")
 
 st.markdown("---")
 st.markdown(
