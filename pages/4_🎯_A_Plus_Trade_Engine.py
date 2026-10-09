@@ -72,7 +72,6 @@ def analyze_btc_support():
             "price": curr
         }
 
-# ১. বিটিসি স্ট্যাটাস ডিসপ্লে
 btc_state = analyze_btc_support()
 if btc_state["trade_allowed"]:
     st.success(f"### {btc_state['title']}\n{btc_state['desc']}")
@@ -81,7 +80,6 @@ else:
 
 st.divider()
 
-# ২. টোকেনোমিক্স ও মেটাডাটা
 @st.cache_data(ttl=1800)
 def get_token_metadata(symbol):
     try:
@@ -111,7 +109,6 @@ def get_token_metadata(symbol):
     except Exception:
         return None
 
-# ৩. সার্চ বক্স
 st.subheader("🔍 নির্দিষ্ট কয়েন কনফ্লুয়েন্স অডিট (Multi-Page Verification)")
 st.caption("মূল ড্যাশবোর্ডে ৫০ বা ২০০ এসএমএ-তে আসা যে কয়েনটি অডিট করতে চান, তার সিম্বল দিন:")
 
@@ -144,7 +141,6 @@ if search_token:
         circ_pct = meta['circ_pct'] if meta else 85.0
         c_status = "🟢 Low Risk (Safe)" if circ_pct >= 80 else ("🔴 High Dilution" if circ_pct <= 35 else "🟡 Moderate")
         
-        # হোয়েল একুমুলেশন হিসাব
         p_7d = closes[-7]
         p_14d = closes[-14]
         p_30d = closes[-30] if len(closes) >= 30 else closes[0]
@@ -162,21 +158,21 @@ if search_token:
         else:
             w_grade = "⚠️ Grade C (Whale Distribution)"
             
-        flow_metric = f"7D: {'🟢' if acc_7d else '🔴'} | 14D: {'🟢' if acc_14d else '🔴'} | 30D: {'🟢' if acc_30d else '🔴'}"
+        flow_metric = "7D: " + ("🟢" if acc_7d else "🔴") + " | 14D: " + ("🟢" if acc_14d else "🔴") + " | 30D: " + ("🟢" if acc_30d else "🔴")
 
-        # লিকুইডিটি হিটম্যাপ ক্লাস্টার
-        short_liq_pool = f"${round(curr_p * 1.035, 4)} -${round(curr_p * 1.075, 4)}"
+        short_liq_pool = "$" + str(round(curr_p * 1.035, 4)) + " - $" + str(round(curr_p * 1.075, 4))
         safe_sl = round(sma_val * 0.965, 4)
-        entry_zone = f"${round(sma_val * 1.002, 4)} -${round(curr_p, 4)}"
+        entry_zone = "$" + str(round(sma_val * 1.002, 4)) + " - $" + str(round(curr_p, 4))
         
         risk = max(curr_p - safe_sl, curr_p * 0.035)
         tp1 = round(curr_p + (risk * 1.5), 4)
         tp2 = round(curr_p + (risk * 2.5), 4)
         tp3 = round(curr_p + (risk * 4.0), 4)
+        
+        tp_summary = "TP1: $" + str(tp1) + " | TP2: $" + str(tp2) + " \vert{} TP3: $" + str(tp3)
 
         trade_verdict = "🟢 A+ READY TO LONG" if (btc_state["trade_allowed"] and curr_p >= sma_val and "Grade C" not in w_grade) else "⛔ NO TRADE (Risky Setup)"
 
-        # ৪টি বড় স্ট্যাটাস কার্ড
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("বর্তমান লাইভ প্রাইস", f"${curr_p:,.4f}", f"{dist_pct:+.2f}% from SMA")
         m2.metric(f"{selected_sma} SMA ভ্যালু", f"${sma_val:,.4f}")
@@ -185,18 +181,17 @@ if search_token:
 
         st.markdown("---")
 
-        # অল-ইন-ওয়ান কনফ্লুয়েন্স অডিট টেবিল
         st.subheader(f"📋 {search_token} - সম্পূর্ণ মাল্টি-পেজ কনফ্লুয়েন্স অডিট রিপোর্ট")
         
         audit_rows = [
             {"প্যারামিটার": "১. বিটকয়েন মার্কেট রেজিম (BTC Safe?)", "মান": "✅ অনুমোদিত (সাপোর্টে রয়েছে)" if btc_state["trade_allowed"] else "❌ ঝুঁকিপূর্ণ (ডাউনট্রেন্ড)", "ইমপ্যাক্ট": "মার্কেট ডিরেকশন সেফটি"},
-            {"প্যারামিটার": f"২. টেকনিক্যাল রিটেস্ট ({selected_sma} SMA)", "মান": f"{'✅ এসএমএ-এর উপরে' if curr_p >= sma_val else '❌ এসএমএ-এর নিচে'} (দূরত্ব: {dist_pct:.2f}%)", "ইমপ্যাক্ট": "সুইং সাপোর্ট ভেরিফিকেশন"},
-            {"প্যারামিটার": "৩. টোকেনোমিক্স ও সাপ্লাই ডিলিউশন", "মান": f"{circ_pct}% সার্কুলেটিং ({c_status})", "ইমপ্যাক্ট": "টোকেন ডাম্প রিস্ক ফিল্টার"},
-            {"প্যারামিটার": "৪. হোয়েল ফ্লো (7D / 14D / 30D)", "মান": f"{flow_metric} ({w_grade})", "ইমপ্যাক্ট": "স্মার্ট মানি একুমুলেশন"},
+            {"প্যারামিটার": "২. টেকনিক্যাল রিটেস্ট (" + str(selected_sma) + " SMA)", "মান": ("✅ এসএমএ-এর উপরে" if curr_p >= sma_val else "❌ এসএমএ-এর নিচে") + " (দূরত্ব: " + str(round(dist_pct, 2)) + "%)", "ইমপ্যাক্ট": "সুইং সাপোর্ট ভেরিফিকেশন"},
+            {"প্যারামিটার": "৩. টোকেনোমিক্স ও সাপ্লাই ডিলিউশন", "মান": str(circ_pct) + "% সার্কুলেটিং (" + c_status + ")", "ইমপ্যাক্ট": "টোকেন ডাম্প রিস্ক ফিল্টার"},
+            {"প্যারামিটার": "৪. হোয়েল ফ্লো (7D / 14D / 30D)", "মান": flow_metric + " (" + w_grade + ")", "ইমপ্যাক্ট": "স্মার্ট মানি একুমুলেশন"},
             {"প্যারামিটার": "৫. লিকুইডিটি হিটম্যাপ পুল (Short Squeeze)", "মান": short_liq_pool, "ইমপ্যাক্ট": "আপার ম্যাগনেট টার্গেট"},
             {"প্যারামিটার": "৬. এন্ট্রি জোন (Entry Range)", "মান": entry_zone, "ইমপ্যাক্ট": "লিমিট বাই অর্ডার রেঞ্জ"},
-            {"প্যারামিটার": "৭. অ্যান্টি-হান্ট স্টপ-লস (Safe SL)", "মান": f"${safe_sl}", "ইমপ্যাক্ট": "লিকুইডিটি হান্টিং বাফার"},
-            {"প্যারামিটার": "৮. টার্গেট ১ / ২ / ৩", "মান": f"TP1: ${tp1} | TP2: ${tp2} \vert{} TP3:${tp3}", "ইমপ্যাক্ট": "রিস্ক-রিওয়ার্ড ১:১.৫ থেকে ১:৪.০"}
+            {"প্যারামিটার": "৭. অ্যান্টি-হান্ট স্টপ-লস (Safe SL)", "মান": "$" + str(safe_sl), "ইমপ্যাক্ট": "লিকুইডিটি হান্টিং বাফার"},
+            {"প্যারামিটার": "৮. টার্গেট ১ / ২ / ৩", "মান": tp_summary, "ইমপ্যাক্ট": "রিস্ক-রিওয়ার্ড ১:১.৫ থেকে ১:৪.০"}
         ]
         
         st.table(pd.DataFrame(audit_rows))
