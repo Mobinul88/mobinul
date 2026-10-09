@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 
 st.set_page_config(
-    page_title="Master Confluence Terminal",
+    page_title="Institutional Confluence & Risk Engine",
     page_icon="🎯",
     layout="wide"
 )
@@ -12,10 +12,11 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-st.title("🎯 মাস্টার ট্রেড কনফ্লুয়েন্স ও অল-ইন-ওয়ান অডিট ইঞ্জিন")
-st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *বিটিসি সাপোর্ট, SMA রিটেস্ট, টোকেনোমিক্স, হোয়েল ফ্লো ও লিকুইডিটি হিটম্যাপ*")
+st.title("🎯 প্রাতিষ্ঠানিক সুইং, ডেরিভেটিভস ও রিস্ক ম্যানেজমেন্ট টার্মিনাল")
+st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *বিটিসি রেজিম, ফান্ডিং রেট, ওপেন ইন্টারেস্ট, লিকুইডিটি ও পজিশন ক্যালকুলেটর*")
 st.divider()
 
+# ১. বাইনান্স ও মার্কেট ফেচ ফাংশন
 def get_binance_klines(symbol, interval, limit=230):
     urls = [
         "https://data-api.binance.vision/api/v3/klines",
@@ -34,7 +35,30 @@ def get_binance_klines(symbol, interval, limit=230):
             continue
     return None
 
-def analyze_btc_support():
+def fetch_derivatives_data(symbol):
+    """লাইভ ফান্ডিং রেট ও ওপেন ইন্টারেস্ট সংগ্রহ"""
+    funding_rate = 0.01
+    open_interest = 0.0
+    try:
+        f_url = f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol}USDT"
+        fr = requests.get(f_url, headers=HEADERS, timeout=3).json()
+        if 'lastFundingRate' in fr:
+            funding_rate = float(fr['lastFundingRate']) * 100
+    except Exception:
+        pass
+
+    try:
+        oi_url = f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol}USDT"
+        oir = requests.get(oi_url, headers=HEADERS, timeout=3).json()
+        if 'openInterest' in oir:
+            open_interest = float(oir['openInterest'])
+    except Exception:
+        pass
+
+    return funding_rate, open_interest
+
+def analyze_btc_and_dominance():
+    """বিটকয়েন সাপোর্ট ও অল্টকয়েন মার্কেট রেজিম বিশ্লেষণ"""
     klines = get_binance_klines("BTCUSDT", "1d", 220)
     if not klines:
         return {"title": "বিটিসি ডেটা কানেকশন এরর", "desc": "ডেটা লোড করা সম্ভব হয়নি", "trade_allowed": True, "price": 0}
@@ -52,27 +76,27 @@ def analyze_btc_support():
     
     if (curr >= s200 or curr >= s50) and dist_support <= 4.5:
         return {
-            "title": "🟢 BTC AT STRONG SUPPORT (Safe Liquidity Zone)",
-            "desc": f"বিটিসি টেকনিক্যাল সাপোর্ট জোনে রিবাউন্ড করছে (${curr:,.2f})। অল্টকয়েন সুইং নেওয়ার জন্য পারফেক্ট সময়!",
+            "title": "🟢 BTC AT STRONG SUPPORT (Safe Altcoin Season)",
+            "desc": f"বিটিসি টেকনিক্যাল সাপোর্ট জোনে স্থিতিশীল (${curr:,.2f})। অল্টকয়েন সুইং লং নেওয়ার জন্য পারফেক্ট রেজিম!",
             "trade_allowed": True,
             "price": curr
         }
     elif curr >= s200:
         return {
             "title": "🟢 BTC BULLISH REGIME",
-            "desc": f"বিটিসি ২০০ এসএমএ-এর উপরে স্থিতিশীল (${curr:,.2f})। সুইং ট্রেড সক্রিয় রাখা যাবে।",
+            "desc": f"বিটিসি ২০০ এসএমএ-এর উপরে অবস্থান করছে (${curr:,.2f})। সুইং ট্রেড অনুমোদিত।",
             "trade_allowed": True,
             "price": curr
         }
     else:
         return {
             "title": "🔴 BTC VOLATILE / BREAKDOWN DANGER",
-            "desc": f"বিটিসি মেজর সাপোর্টের নিচে অবস্থান করছে (${curr:,.2f})। যেকোনো অল্টকয়েনে লং ট্রেড বিপজ্জনক!",
+            "desc": f"বিটিসি মেজর সাপোর্টের নিচে বা ডাউনট্রেন্ডে অবস্থান করছে (${curr:,.2f})। অল্টকয়েনে লং নেওয়া অনিরাপদ!",
             "trade_allowed": False,
             "price": curr
         }
 
-btc_state = analyze_btc_support()
+btc_state = analyze_btc_and_dominance()
 if btc_state["trade_allowed"]:
     st.success(f"### {btc_state['title']}\n{btc_state['desc']}")
 else:
@@ -109,9 +133,8 @@ def get_token_metadata(symbol):
     except Exception:
         return None
 
-st.subheader("🔍 নির্দিষ্ট কয়েন কনফ্লুয়েন্স অডিট (Multi-Page Verification)")
-st.caption("মূল ড্যাশবোর্ডে ৫০ বা ২০০ এসএমএ-তে আসা যে কয়েনটি অডিট করতে চান, তার সিম্বল দিন:")
-
+# ২. কয়েন সার্চ ও প্যারামিটার
+st.subheader("🔍 প্রাতিষ্ঠানিক অডিট ইঞ্জিন ও কনফ্লুয়েন্স সার্চ")
 col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
 with col_s1:
     search_token = st.text_input("কয়েনের সিম্বল (যেমন: LPT, ARKM, ATOM, FET, SOL, TRX):", value="LPT").strip().upper()
@@ -121,12 +144,13 @@ with col_s3:
     selected_tf = st.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
 
 if search_token:
-    with st.spinner(f"{search_token}-এর সমস্ত পেজের ডেটা সিঙ্ক ও কনফ্লুয়েন্স অডিট চলছে..."):
+    with st.spinner(f"{search_token}-এর ডেরিভেটিভস, টেকনিক্যাল ও অন-চেইন ডেটা প্রসেস হচ্ছে..."):
         klines = get_binance_klines(f"{search_token}USDT", selected_tf, selected_sma + 35)
         meta = get_token_metadata(search_token)
+        funding_rate, open_interest = fetch_derivatives_data(search_token)
 
     if not klines or len(klines) < (selected_sma + 5):
-        st.error(f"'{search_token}USDT' পেয়ারটির ক্যান্ডেলস্টিক ডেটা পাওয়া যায়নি। অনুগ্রহ করে সঠিক সিম্বল দিন।")
+        st.error(f"'{search_token}USDT' পেয়ারটির ডেটা লোড করা যায়নি। সঠিক পেয়ার নাম নিশ্চিত করুন।")
     else:
         closes = [float(k[4]) for k in klines]
         lows = [float(k[3]) for k in klines]
@@ -141,6 +165,7 @@ if search_token:
         circ_pct = meta['circ_pct'] if meta else 85.0
         c_status = "🟢 Low Risk (Safe)" if circ_pct >= 80 else ("🔴 High Dilution" if circ_pct <= 35 else "🟡 Moderate")
         
+        # ৭ডি, ১৪ডি, ৩০ডি হোয়েল ফ্লো
         p_7d = closes[-7]
         p_14d = closes[-14]
         p_30d = closes[-30] if len(closes) >= 30 else closes[0]
@@ -160,6 +185,14 @@ if search_token:
             
         flow_metric = "7D: " + ("🟢" if acc_7d else "🔴") + " | 14D: " + ("🟢" if acc_14d else "🔴") + " | 30D: " + ("🟢" if acc_30d else "🔴")
 
+        # ডেরিভেটিভস সেন্টিমেন্ট
+        if funding_rate < 0:
+            deriv_bias = f"🔥 Extreme Bullish Short-Squeeze Bias (Funding: {funding_rate:.4f}%)"
+        elif funding_rate < 0.01:
+            deriv_bias = f"🟢 Balanced / Neutral Funding ({funding_rate:.4f}%)"
+        else:
+            deriv_bias = f"⚠️ Overheated Longs (Funding: {funding_rate:.4f}%)"
+
         short_liq_pool = "$" + str(round(curr_p * 1.035, 4)) + " - $" + str(round(curr_p * 1.075, 4))
         safe_sl = round(sma_val * 0.965, 4)
         entry_zone = "$" + str(round(sma_val * 1.002, 4)) + " - $" + str(round(curr_p, 4))
@@ -168,11 +201,11 @@ if search_token:
         tp1 = round(curr_p + (risk * 1.5), 4)
         tp2 = round(curr_p + (risk * 2.5), 4)
         tp3 = round(curr_p + (risk * 4.0), 4)
-        
         tp_summary = "TP1: $" + str(tp1) + " | TP2: $" + str(tp2) + " \vert{} TP3: $" + str(tp3)
 
         trade_verdict = "🟢 A+ READY TO LONG" if (btc_state["trade_allowed"] and curr_p >= sma_val and "Grade C" not in w_grade) else "⛔ NO TRADE (Risky Setup)"
 
+        # মেট্রিক্স কার্ডস
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("বর্তমান লাইভ প্রাইস", f"${curr_p:,.4f}", f"{dist_pct:+.2f}% from SMA")
         m2.metric(f"{selected_sma} SMA ভ্যালু", f"${sma_val:,.4f}")
@@ -181,20 +214,57 @@ if search_token:
 
         st.markdown("---")
 
-        st.subheader(f"📋 {search_token} - সম্পূর্ণ মাল্টি-পেজ কনফ্লুয়েন্স অডিট রিপোর্ট")
+        # ৩. রিস্ক ও পজিশন সাইজিং ক্যালকুলেটর (নতুন ফিচার)
+        st.subheader("💰 স্বয়ংক্রিয় পজিশন সাইজিং ও রিস্ক ক্যালকুলেটর")
+        col_c1, col_c2, col_c3 = st.columns(3)
+        with col_c1:
+            acc_balance = st.number_input("আপনার ক্যাপিটাল ($ USD):", min_value=50.0, value=1000.0, step=50.0)
+        with col_c2:
+            risk_pct = st.slider("এই ট্রেডে সর্বোচ্চ ঝুঁকি (Risk %):", min_value=0.5, max_value=5.0, value=2.0, step=0.5)
         
+        dollar_risk = (acc_balance * risk_pct) / 100
+        sl_diff_pct = abs((curr_p - safe_sl) / curr_p) * 100
+        recommended_tokens = dollar_risk / abs(curr_p - safe_sl) if abs(curr_p - safe_sl) > 0 else 0
+        total_position_size = recommended_tokens * curr_p
+        rec_leverage = max(1.0, round(total_position_size / acc_balance, 1))
+
+        with col_c3:
+            st.metric("সর্বোচ্চ ঝুঁকি ($)", f"${dollar_risk:,.2f}")
+
+        rc1, rc2, rc3 = st.columns(3)
+        rc1.info(f"**স্টপ-লস দূরত্ব:** `{sl_diff_pct:.2f}%`")
+        rc2.success(f"**প্রস্তাবিত টোকেন সংখ্যা:** `{recommended_tokens:,.2f} {search_token}`")
+        rc3.warning(f"**নিরাপদ ফিউচার্স লেভারেজ:** `{min(rec_leverage, 5.0)}x` (স্পটে 1x)")
+
+        st.markdown("---")
+
+        # ৪. ফুল অডিট টেবিল
+        st.subheader(f"📋 {search_token} - প্রাতিষ্ঠানিক অডিট রিপোর্ট")
         audit_rows = [
-            {"প্যারামিটার": "১. বিটকয়েন মার্কেট রেজিম (BTC Safe?)", "মান": "✅ অনুমোদিত (সাপোর্টে রয়েছে)" if btc_state["trade_allowed"] else "❌ ঝুঁকিপূর্ণ (ডাউনট্রেন্ড)", "ইমপ্যাক্ট": "মার্কেট ডিরেকশন সেফটি"},
-            {"প্যারামিটার": "২. টেকনিক্যাল রিটেস্ট (" + str(selected_sma) + " SMA)", "মান": ("✅ এসএমএ-এর উপরে" if curr_p >= sma_val else "❌ এসএমএ-এর নিচে") + " (দূরত্ব: " + str(round(dist_pct, 2)) + "%)", "ইমপ্যাক্ট": "সুইং সাপোর্ট ভেরিফিকেশন"},
-            {"প্যারামিটার": "৩. টোকেনোমিক্স ও সাপ্লাই ডিলিউশন", "মান": str(circ_pct) + "% সার্কুলেটিং (" + c_status + ")", "ইমপ্যাক্ট": "টোকেন ডাম্প রিস্ক ফিল্টার"},
-            {"প্যারামিটার": "৪. হোয়েল ফ্লো (7D / 14D / 30D)", "মান": flow_metric + " (" + w_grade + ")", "ইমপ্যাক্ট": "স্মার্ট মানি একুমুলেশন"},
-            {"প্যারামিটার": "৫. লিকুইডিটি হিটম্যাপ পুল (Short Squeeze)", "মান": short_liq_pool, "ইমপ্যাক্ট": "আপার ম্যাগনেট টার্গেট"},
-            {"প্যারামিটার": "৬. এন্ট্রি জোন (Entry Range)", "মান": entry_zone, "ইমপ্যাক্ট": "লিমিট বাই অর্ডার রেঞ্জ"},
-            {"প্যারামিটার": "৭. অ্যান্টি-হান্ট স্টপ-লস (Safe SL)", "মান": "$" + str(safe_sl), "ইমপ্যাক্ট": "লিকুইডিটি হান্টিং বাফার"},
-            {"প্যারামিটার": "৮. টার্গেট ১ / ২ / ৩", "মান": tp_summary, "ইমপ্যাক্ট": "রিস্ক-রিওয়ার্ড ১:১.৫ থেকে ১:৪.০"}
+            {"প্যারামিটার": "১. বিটকয়েন মার্কেট রেজিম (BTC Safe?)", "মান": "✅ অনুমোদিত (সাপোর্টে রয়েছে)" if btc_state["trade_allowed"] else "❌ ঝুঁকিপূর্ণ (ডাউনট্রেন্ড)", "ইমপ্যাক্ট": "গ্লোবাল ডিরেকশন"},
+            {"প্যারামিটার": "২. টেকনিক্যাল রিটেস্ট (" + str(selected_sma) + " SMA)", "মান": ("✅ এসএমএ-এর উপরে" if curr_p >= sma_val else "❌ এসএমএ-এর নিচে") + " (দূরত্ব: " + str(round(dist_pct, 2)) + "%)", "ইমপ্যাক্ট": "সুইং সাপোর্ট"},
+            {"প্যারামিটার": "৩. ফান্ডিং রেট ও ডেরিভেটিভস বায়াস", "মান": deriv_bias, "ইমপ্যাক্ট": "শর্ট স্কুইজ পটেনশিয়াল"},
+            {"প্যারামিটার": "৪. টোকেনোমিক্স ও সাপ্লাই ডিলিউশন", "মান": str(circ_pct) + "% সার্কুলেটিং (" + c_status + ")", "ইমপ্যাক্ট": "টোকেন ডাম্প রিস্ক ফিল্টার"},
+            {"প্যারামিটার": "৫. হোয়েল ফ্লো (7D / 14D / 30D)", "মান": flow_metric + " (" + w_grade + ")", "ইমপ্যাক্ট": "স্মার্ট মানি একুমুলেশন"},
+            {"প্যারামিটার": "৬. লিকুইডিটি হিটম্যাপ পুল (Upper Target)", "মান": short_liq_pool, "ইমপ্যাক্ট": "ম্যাগনেট লিকুইডেশন টার্গেট"},
+            {"প্যারামিটার": "৭. এন্ট্রি জোন (Entry Range)", "মান": entry_zone, "ইমপ্যাক্ট": "লিমিট বাই অর্ডার রেঞ্জ"},
+            {"প্যারামিটার": "৮. অ্যান্টি-হান্ট স্টপ-লস (Safe SL)", "মান": "$" + str(safe_sl), "ইমপ্যাক্ট": "লিকুইডিটি হান্টিং বাফার"},
+            {"প্যারামিটার": "৯. টার্গেট লেভেলস", "মান": tp_summary, "ইমপ্যাক্ট": "রিস্ক-রিওয়ার্ড ১:১.৫ থেকে ১:৪.০"}
         ]
-        
         st.table(pd.DataFrame(audit_rows))
+
+        # ৫. টেলিগ্রাম অ্যালার্ট মেকার (এক ক্লিকে কপি করার মতো তৈরি টেক্সট)
+        st.subheader("📲 টেলিগ্রাম ও ডিসকর্ড রেডি সিগন্যাল")
+        telegram_text = f"""🚨 [MOBINUL TERMINAL A+ SWING SIGNAL] 🚨
+Pair: #{search_token}USDT
+Verdict: {trade_verdict}
+Entry Zone: {entry_zone}
+Stop-Loss: ${safe_sl} (Anti-Hunt Buffer)
+Targets: {tp_summary}
+Funding Rate: {funding_rate:.4f}% | Whale: {w_grade}
+Risk Management: {min(rec_leverage, 5.0)}x Max Leverage (Risk {dollar_risk:,.2f}$)"""
+        
+        st.code(telegram_text, language="markdown")
 
         c_link1, c_link2 = st.columns(2)
         with c_link1:
@@ -208,7 +278,7 @@ st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 13px;'>
         © 2026 <b>Mobinul Intelligence Terminal</b> | All Rights Reserved.<br>
-        <i>Unified Master Confluence & Trade Execution System</i>
+        <i>Institutional Derivatives, Risk Engine & Trade Execution Terminal</i>
     </div>
     """,
     unsafe_allow_html=True
