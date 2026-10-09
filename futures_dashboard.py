@@ -17,6 +17,45 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
+# প্রি-ডিফাইন্ড জনপ্রিয় ক্রিপ্টো সেক্টর ম্যাপিং
+SECTOR_MAP = {
+    # AI & Big Data
+    'FET': '🤖 AI / Data', 'NEAR': '🤖 AI / L1', 'RNDR': '🤖 AI / GPU', 'RENDER': '🤖 AI / GPU',
+    'TAO': '🤖 AI', 'WLD': '🤖 AI / Identity', 'AGIX': '🤖 AI', 'ARKM': '🤖 AI / Intel',
+    'OCEAN': '🤖 AI / Data', 'GRT': '🤖 AI / Indexing', 'IO': '🤖 AI / Compute',
+
+    # RWA (Real World Assets)
+    'ONDO': '🏛️ RWA', 'LINK': '🏛️ Oracle / RWA', 'PENDLE': '🏛️ RWA / Yield',
+    'MKR': '🏛️ RWA / DeFi', 'CFG': '🏛️ RWA', 'TRU': '🏛️ RWA', 'POLYX': '🏛️ RWA',
+
+    # Layer 1
+    'BTC': '🧱 Layer 1', 'ETH': '🧱 Layer 1', 'SOL': '🧱 Layer 1', 'BNB': '🧱 Layer 1',
+    'SUI': '🧱 Layer 1', 'SEI': '🧱 Layer 1', 'AVAX': '🧱 Layer 1', 'ATOM': '🧱 Layer 1',
+    'ADA': '🧱 Layer 1', 'DOT': '🧱 Layer 1', 'KAS': '🧱 Layer 1', 'ALGO': '🧱 Layer 1',
+    'FTM': '🧱 Layer 1', 'INJ': '🧱 Layer 1 / DeFi', 'APT': '🧱 Layer 1', 'TON': '🧱 Layer 1',
+
+    # Layer 2
+    'ARB': '⚡ Layer 2', 'OP': '⚡ Layer 2', 'MATIC': '⚡ Layer 2', 'POL': '⚡ Layer 2',
+    'STRK': '⚡ Layer 2', 'MANTA': '⚡ Layer 2', 'METIS': '⚡ Layer 2', 'BLAST': '⚡ Layer 2',
+    'ZK': '⚡ Layer 2 (ZK)', 'IMX': '⚡ Layer 2 / Gaming',
+
+    # DeFi
+    'UNI': '🔄 DeFi', 'AAVE': '🔄 DeFi / Lending', 'CRV': '🔄 DeFi', 'DYDX': '🔄 DeFi / Perp',
+    'SNX': '🔄 DeFi', 'CAKE': '🔄 DeFi', 'JUP': '🔄 DeFi / Solana', 'RAY': '🔄 DeFi / Solana',
+    'COMP': '🔄 DeFi', 'SUSHI': '🔄 DeFi', '1INCH': '🔄 DeFi', 'LDO': '🔄 Liquid Staking',
+
+    # Meme Coins
+    'DOGE': '🐶 Meme', 'SHIB': '🐶 Meme', 'PEPE': '🐶 Meme', 'WIF': '🐶 Meme',
+    'BONK': '🐶 Meme', 'FLOKI': '🐶 Meme', 'BOME': '🐶 Meme', 'MEME': '🐶 Meme',
+
+    # Gaming & Metaverse
+    'GALA': '🎮 Gaming', 'AXS': '🎮 Gaming', 'SAND': '🎮 Metaverse', 'MANA': '🎮 Metaverse',
+    'BEAM': '🎮 Gaming', 'PIXEL': '🎮 Gaming', 'NOT': '🎮 Web3 Gaming',
+
+    # DePIN & Storage
+    'FIL': '📦 DePIN / Storage', 'AR': '📦 Storage', 'HNT': '📡 DePIN', 'THETA': '📡 DePIN / Video'
+}
+
 # হেডার ব্র্যান্ডিং
 col_logo, col_title = st.columns([1, 6])
 with col_logo:
@@ -71,10 +110,8 @@ def get_all_futures_symbols():
 
 @st.cache_data(ttl=3600)
 def get_global_market_assets():
-    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই এবং Arkham স্লাগ মেমরিতে ক্যাশ করা"""
+    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই এবং মেটাডাটা ক্যাশ করা"""
     cache_map = {}
-    
-    # CoinGecko বাল্ক ডাটা
     for page in [1, 2, 3]:
         try:
             cg_url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={page}&sparkline=false"
@@ -84,14 +121,13 @@ def get_global_market_assets():
                     sym = item.get('symbol', '').upper()
                     if sym:
                         cache_map[sym] = {
-                            'id': item.get('id'), # সঠিক Arkham/Gecko স্লাগ
+                            'id': item.get('id'),
                             'supply': item.get('circulating_supply'),
                             'maxSupply': item.get('max_supply') or item.get('total_supply')
                         }
         except Exception:
             pass
 
-    # CoinCap ব্যাকআপ বাল্ক ডাটা
     try:
         cc_url = "https://api.coincap.io/v2/assets?limit=1000"
         r2 = requests.get(cc_url, headers=HEADERS, timeout=5)
@@ -191,8 +227,12 @@ def check_sma_retest(symbol, sma_period, interval, max_distance):
             
         was_below = any(df['close'].iloc[-i] < df['sma'].iloc[-i] for i in range(2, 8))
         if was_below:
+            clean_name = symbol.replace("USDT", "")
+            # ক্যাটাগরি নির্ধারণ
+            category = SECTOR_MAP.get(clean_name, "🌐 Ecosystem")
             return {
-                'Symbol': symbol.replace("USDT", ""),
+                'Symbol': clean_name,
+                'Category': category,
                 'Price ($)': current_close,
                 f'SMA_{sma_period}': round(current_sma, 4),
                 'Distance (%)': f"{round(dist_pct, 2)}%"
@@ -225,8 +265,6 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
             if match:
                 tokenomics = extract_tokenomics(clean_sym, market_cache)
                 slug_val = tokenomics.pop('slug', clean_sym.lower())
-                
-                # ১০০% কার্যকর Arkham ডিরেক্ট পাথ (যেমন: arkm.com/explorer/token/livepeer)
                 arkham_url = f"https://arkm.com/explorer/token/{slug_val}"
                 
                 match.update(tokenomics)
@@ -242,6 +280,11 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
             st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি পেয়ার {sma_choice} SMA রিটেস্ট ফিল্টারে পাওয়া গেছে।")
             df_result = pd.DataFrame(matched_data)
             
+            # কলামের ক্রম সাজানো (Symbol-এর পরপরই Category)
+            cols = ['Symbol', 'Category', 'Price ($)', f'SMA_{sma_choice}', 'Distance (%)', 'Circulating', 'Total_Supply', 'Circ_%', 'Unlock_Status', 'Arkham Link']
+            available_cols = [c for c in cols if c in df_result.columns]
+            df_result = df_result[available_cols]
+
             st.dataframe(
                 df_result,
                 column_config={
@@ -255,7 +298,7 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
             st.download_button(
                 label="📥 সম্পূর্ণ CSV রিপোর্ট ডাউনলোড",
                 data=csv_file,
-                file_name=f"mobin_crypto_{sma_choice}sma_full_report.csv",
+                file_name=f"mobin_crypto_{sma_choice}sma_report.csv",
                 mime="text/csv"
             )
         else:
