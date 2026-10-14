@@ -33,7 +33,7 @@ def fetch_data(symbol):
         except Exception:
             funding_rate = 0.005
 
-        if ohlcv_4h and len(ohlcv_4h) >= 30 and ohlcv_1d and len(ohlcv_1d) >= 20:
+        if ohlcv_4h and len(ohlcv_4h) >= 30 and ohlcv_1d and len(ohlcv_1d) >= 15:
             df_4h = pd.DataFrame(ohlcv_4h, columns=["open_time", "open", "high", "low", "close", "volume"])
             df_4h["open_time"] = pd.to_datetime(df_4h["open_time"], unit="ms")
             for c in ["open", "high", "low", "close", "volume"]:
@@ -65,32 +65,28 @@ def calculate_technical_indicators(df):
     return df
 
 def analyze_institutional_setup(df_4h, df_1d, funding_rate, symbol):
-    df_1d["sma50"] = df_1d["close"].rolling(50, min_periods=15).mean()
-    df_1d["sma200"] = df_1d["close"].rolling(200, min_periods=20).mean()
+    df_1d["sma50"] = df_1d["close"].rolling(50, min_periods=10).mean()
+    df_1d["sma200"] = df_1d["close"].rolling(200, min_periods=15).mean()
     
     d_close = df_1d.iloc[-1]["close"]
     d_sma50 = df_1d.iloc[-1]["sma50"]
     d_sma200 = df_1d.iloc[-1]["sma200"]
 
-    # ডেইলি বায়াস চেক
-    daily_bias_score = 0
+    daily_score = 0
     if (not pd.isna(d_sma50) and d_close >= d_sma50) or (not pd.isna(d_sma200) and d_close >= d_sma200):
-        daily_bias_score = 2
-    elif d_close >= df_1d.iloc[-5]["close"]: # অন্তত ৫ দিনের আপট্রেন্ড
-        daily_bias_score = 1
+        daily_score = 2
+    elif len(df_1d) >= 5 and d_close >= df_1d.iloc[-5]["close"]:
+        daily_score = 1
 
-    # ৩D / ৭D কম্প্রেশন
     range_3d = (df_1d["high"].tail(3).max() - df_1d["low"].tail(3).min()) / d_close * 100
-    is_compressing = 1 if range_3d <= 18.0 else 0
-
-    # ফান্ডিং রেট চেক
+    compress_score = 1 if range_3d <= 20.0 else 0
     funding_score = 1 if funding_rate <= 0.02 else 0
 
     df_4h = calculate_technical_indicators(df_4h)
-    df_4h["sma50"] = df_4h["close"].rolling(50, min_periods=20).mean()
-    df_4h["sma200"] = df_4h["close"].rolling(200, min_periods=30).mean()
+    df_4h["sma50"] = df_4h["close"].rolling(50, min_periods=15).mean()
+    df_4h["sma200"] = df_4h["close"].rolling(200, min_periods=20).mean()
 
-    scan_start = max(20, len(df_4h) - 24)
+    scan_start = max(15, len(df_4h) - 24)
 
     for i in range(scan_start, len(df_4h)):
         row = df_4h.iloc[i]
@@ -100,22 +96,20 @@ def analyze_institutional_setup(df_4h, df_1d, funding_rate, symbol):
             if pd.isna(ma_val):
                 continue
 
-            # কোর বাউন্স শর্ত: এসএমএ রিটেস্ট এবং গ্রিন ক্যান্ডেল
             dist_pct = ((row["close"] - ma_val) / ma_val) * 100
-            touched_ma = (row["low"] <= ma_val * 1.015) and (-1.5 <= dist_pct <= 4.0)
-            is_green = (row["close"] >= row["open"]) and (row["close"] >= ma_val * 0.995)
+            touched_ma = (row["low"] <= ma_val * 1.02) and (-2.0 <= dist_pct <= 5.0)
+            is_green = (row["close"] >= row["open"]) and (row["close"] >= ma_val * 0.99)
 
             if touched_ma and is_green:
-                # ডাইনামিক স্কোরিং
-                score = daily_bias_score + is_compressing + funding_score
-                if row["rsi"] >= 40: score += 1
-                if row["volume"] >= row["vol_sma"] * 0.85: score += 1
-                if row["macd_hist"] > -0.08: score += 1
+                score = daily_score + compress_score + funding_score
+                if row["rsi"] >= 38: score += 1
+                if row["volume"] >= (row["vol_sma"] * 0.75): score += 1
+                if row["macd_hist"] > -0.15: score += 1
 
-                # ন্যূনতম ৪+ স্কোর পেলে প্রাতিষ্ঠানিক সিগন্যাল ট্রিগার
-                if score >= 4:
+                # ৩ বা তার বেশি স্কোর পেলেই ট্রেড কোয়ালিফাই করবে
+                if score >= 3:
                     entry = float(row["close"])
-                    sl = float(min(row["low"], ma_val * 0.97))
+                    sl = float(min(row["low"], ma_val * 0.965))
                     risk = max(entry - sl, entry * 0.025)
 
                     tp1 = entry + (risk * 1.5)
@@ -237,4 +231,4 @@ if results:
     st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.info("ℹ️ স্ক্যান করা কোনো কয়েনেই ন্যূনতম ৪/৭ কনফ্লুয়েন্স স্কোর মেলেনি।")
+    st.info("ℹ️ স্ক্যান করা কোনো কয়েনেই ন্যূনতম ৩/৭ কনফ্লুয়েন্স স্কোর মেলেনি।")
