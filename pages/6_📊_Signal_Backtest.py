@@ -6,8 +6,8 @@ from datetime import datetime
 
 st.set_page_config(page_title="Portfolio Signal Audit", layout="wide")
 
-st.title("📊 4-Day Institutional Portfolio Signal Audit (Optimized)")
-st.markdown("কনফার্মেশন ফিল্টার ও ভলিউম রিজেকশন যুক্ত করার পর সিগন্যালের নির্ভুলতা এবং উইন-রেট।")
+st.title("📊 4-Day Institutional Portfolio Signal Audit (Balanced)")
+st.markdown("ব্যালান্সড গ্রিন ক্যান্ডেল ও রিটেস্ট কনফার্মেশন সহ সিগন্যালের নির্ভুলতা এবং উইন-রেট।")
 
 SCAN_SYMBOLS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
@@ -31,39 +31,45 @@ def fetch_klines(symbol, timeframe="4h", limit=120):
             return df
     except Exception:
         pass
+    
+    try:
+        kucoin = ccxt.kucoin({'enableRateLimit': True})
+        clean_sym = symbol.replace("USDT", "") + "/USDT"
+        ohlcv = kucoin.fetch_ohlcv(clean_sym, timeframe=timeframe, limit=limit)
+        if ohlcv and len(ohlcv) >= 30:
+            df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
+            df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
+            for c in ["open", "high", "low", "close", "volume"]:
+                df[c] = df[c].astype(float)
+            return df
+    except Exception:
+        pass
     return None
 
 def analyze_coin_first_signal(df, symbol):
     df["sma50"] = df["close"].rolling(50, min_periods=20).mean()
     df["sma200"] = df["close"].rolling(200, min_periods=50).mean()
-    df["vol_sma"] = df["volume"].rolling(20, min_periods=5).mean()
 
     scan_start = max(20, len(df) - 24)
 
     for i in range(scan_start, len(df)):
         row = df.iloc[i]
-        prev_row = df.iloc[i-1]
         
         for ma_col, ma_name in [("sma50", "50 SMA"), ("sma200", "200 SMA")]:
             ma_val = row[ma_col]
             if pd.isna(ma_val):
                 continue
 
-            # ফিল্টার ১: এসএমএ রিটেস্ট বাউন্স (লোয়ার উইক এসএমএ টাচ করলেও ক্লোজ উপরে)
-            tested_ma = (row["low"] <= ma_val * 1.01) and (row["close"] >= ma_val)
+            # ১. মুভিং এভারেজ টাচ অথবা ৩.৫% সাপোর্ট জোন
+            dist_pct = ((row["close"] - ma_val) / ma_val) * 100
+            touched_ma = (row["low"] <= ma_val * 1.01) and (-1.0 <= dist_pct <= 3.5)
             
-            # ফিল্টার ২: বুলিশ ক্যান্ডেল কনফার্মেশন (সবুজ ক্যান্ডেল + রিজেকশন)
-            is_bullish_candle = (row["close"] > row["open"]) and (row["close"] > prev_row["close"])
-            lower_wick = min(row["open"], row["close"]) - row["low"]
-            candle_body = abs(row["close"] - row["open"])
-            has_rejection_wick = lower_wick >= (candle_body * 0.4)
+            # ২. মিনিমাম বাউন্স কনফার্মেশন: ক্যান্ডেল গ্রিন ও ক্লোজ এসএমএ-র ওপরে
+            is_green_candle = (row["close"] >= row["open"]) and (row["close"] >= ma_val)
 
-            # ফিল্টার ৩: ভলিউম সাপোর্ট (অ্যাকুমুলেশন ভলিউম)
-            has_volume = row["volume"] >= (row["vol_sma"] * 0.9)
-
-            if tested_ma and is_bullish_candle and (has_rejection_wick or has_volume):
+            if touched_ma and is_green_candle:
                 entry = float(row["close"])
-                sl = float(min(row["low"], ma_val * 0.98))
+                sl = float(min(row["low"], ma_val * 0.97))
                 risk = max(entry - sl, entry * 0.025)
 
                 tp1 = entry + (risk * 1.5)
@@ -108,7 +114,7 @@ def analyze_coin_first_signal(df, symbol):
                 }
     return None
 
-with st.spinner("ফিল্টার অপ্টিমাইজেশনের মাধ্যমে কোয়ালিটি সিগন্যাল যাচাই করা হচ্ছে..."):
+with st.spinner("ব্যালান্সড ফিল্টারে সিগন্যালগুলো প্রসেস করা হচ্ছে..."):
     results = []
     for sym in SCAN_SYMBOLS:
         df_kline = fetch_klines(sym)
@@ -120,7 +126,7 @@ with st.spinner("ফিল্টার অপ্টিমাইজেশনে�
 if results:
     res_df = pd.DataFrame(results)
 
-    st.subheader("📌 অপ্টিমাইজড সিগন্যাল সামারি (High-Probability Setups)")
+    st.subheader("📌 ব্যালান্সড সিগন্যাল সামারি (Verified Setups)")
     total_signals = len(res_df)
     tp_hits = len(res_df[res_df["Status"].str.contains("TP")])
     sl_hits = len(res_df[res_df["Status"].str.contains("SL")])
@@ -130,7 +136,7 @@ if results:
     avg_pnl = res_df["PnL %"].mean()
 
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("কোয়ালিটি সিগন্যাল", f"{total_signals} টি")
+    m1.metric("মোট সিগন্যাল", f"{total_signals} টি")
     m2.metric("সফল (TP Hit)", f"{tp_hits} টি", f"{win_rate:.1f}% Win Rate")
     m3.metric("স্টপ লস (SL Hit)", f"{sl_hits} টি")
     m4.metric("চলমান (Active)", f"{active_trades} টি")
@@ -152,8 +158,8 @@ if results:
 
     st.markdown("---")
 
-    st.subheader("🕯️ ফিল্টার্ড সিগন্যালের চার্ট ভিউ")
-    selected_symbol = st.selectbox("চার্ট যাচাই করার জন্য কয়েন নির্বাচন করুন:", res_df["Symbol"].tolist())
+    st.subheader("🕯️ সিগন্যালের চার্ট ভিজ্যুয়ালাইজার")
+    selected_symbol = st.selectbox("চার্ট দেখার জন্য কয়েন নির্বাচন করুন:", res_df["Symbol"].tolist())
     selected_data = next(item for item in results if item["Symbol"] == selected_symbol)
     df_plot = selected_data["df"]
 
@@ -170,7 +176,7 @@ if results:
     entry_p = selected_data["Entry"]
     fig.add_annotation(
         x=s_time, y=entry_p,
-        text=f"CONFIRMED ({selected_data['Status']})",
+        text=f"ENTRY ({selected_data['Status']})",
         showarrow=True, arrowhead=2, arrowcolor="green", arrowsize=1.2,
         bgcolor="black", font=dict(color="white", size=10)
     )
@@ -182,10 +188,10 @@ if results:
         xaxis_rangeslider_visible=False,
         height=550,
         template="plotly_dark",
-        title=f"{selected_symbol} 4H Confirmed Structure",
+        title=f"{selected_symbol} 4H Structure",
         yaxis_title="Price (USDT)"
     )
     st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.info("ℹ️ এই ফিল্টারে কোনো ফলস ট্রেড আসেনি। মার্কেট প্রপার রিবাউন্ড কনফার্মেশন দেয়নি।")
+    st.info("ℹ️ গত ৪ দিনে স্ক্যান করা কয়েনগুলোতে কোনো ভ্যালিড গ্রিন বাউন্স তৈরি হয়নি।")
