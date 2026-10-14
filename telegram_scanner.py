@@ -5,10 +5,14 @@ import numpy as np
 from datetime import datetime
 
 # ========================================================
-# টেলিগ্রাম কনফিগারেশন
+# আপনার ভেরিফাইড টেলিগ্রাম কনফিগারেশন
 # ========================================================
-TELEGRAM_BOT_TOKEN = "7784384950:AAHk692_rC3N9N5_6Z6q3e7F0y8X1w2V3u4"
-TELEGRAM_CHAT_ID = "-1002234567890"
+TELEGRAM_BOT_TOKEN = "8968950600:AAEF8nDDEYMYmDQQe59Yoi70dqWuKQZTL0k"
+TELEGRAM_CHAT_ID = "8605377336"
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+}
 
 EXCLUDE_SYMBOLS = [
     "USDCUSDT", "PAXGUSDT", "BTCDOMUSDT", "EURUSDT", 
@@ -29,66 +33,67 @@ def send_telegram_message(message):
         print("Telegram Status Code:", res.status_code)
         if res.status_code != 200:
             print("Telegram Error Response:", res.text)
+        else:
+            print("✅ Telegram alert sent successfully!")
     except Exception as e:
         print(f"Telegram Exception: {e}")
 
 def get_all_futures_symbols():
-    """Bybit গ্লোবাল লিনিয়ার মার্কেট থেকে সমস্ত সক্রিয় USDT পেয়ার সংগ্রহ"""
-    url = "https://api.bybit.com/v5/market/tickers?category=linear"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    """একাধিক নির্ভরযোগ্য গ্লোবাল মিরর এন্ডপয়েন্ট থেকে সক্রিয় পেয়ার সংগ্রহ"""
+    # মেথড ১: Binance Global Mirror
     try:
-        res = requests.get(url, headers=headers, timeout=12).json()
-        if res.get("retCode") == 0:
-            raw_list = res.get("result", {}).get("list", [])
-            symbols = []
-            for item in raw_list:
-                sym = item.get("symbol", "")
-                if sym.endswith("USDT") and sym not in EXCLUDE_SYMBOLS:
-                    symbols.append(sym)
-            if len(symbols) > 50:
-                print(f"✅ সফলভাবে মোট সক্রিয় ফিউচার্স পেয়ার পাওয়া গেছে: {len(symbols)} টি")
-                return sorted(symbols)
-    except Exception as e:
-        print(f"Bybit Symbols Fetch Warning: {e}")
+        url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
+        res = requests.get(url, headers=HEADERS, timeout=10).json()
+        symbols = [
+            s['symbol'] for s in res.get('symbols', []) 
+            if s.get('status') == 'TRADING' and s.get('contractType') == 'PERPETUAL' 
+            and s['symbol'].endswith('USDT') and s['symbol'] not in EXCLUDE_SYMBOLS
+        ]
+        if len(symbols) > 50:
+            print(f"✅ সফলভাবে মোট সক্রিয় ফিউচার্স পেয়ার পাওয়া গেছে: {len(symbols)} টি")
+            return sorted(symbols)
+    except Exception:
+        pass
 
-    # কোনো কারণে ব্যর্থ হলে মূল সক্রিয় কয়েনের তালিকা
+    # মেথড ২: KuCoin Futures Mirror
+    try:
+        url = "https://api-futures.kucoin.com/api/v1/contracts/active"
+        res = requests.get(url, headers=HEADERS, timeout=10).json()
+        if res.get("code") == "200000":
+            symbols = []
+            for item in res.get("data", []):
+                sym = item.get("symbol", "")
+                if sym.endswith("USDTM"):
+                    clean = sym.replace("USDTM", "USDT")
+                    if clean not in EXCLUDE_SYMBOLS:
+                        symbols.append(clean)
+            if len(symbols) > 50:
+                print(f"✅ KuCoin মিরর থেকে সক্রিয় পেয়ার পাওয়া গেছে: {len(symbols)} টি")
+                return sorted(symbols)
+    except Exception:
+        pass
+
     return [
         "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
         "XRPUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", 
         "APTUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT"
     ]
 
-def get_klines(symbol, interval="D", limit=60):
-    """Bybit Klines ডেটা ফেচিং"""
-    url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval={interval}&limit={limit}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+def get_klines(symbol, interval="1d", limit=60):
+    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     try:
-        res = requests.get(url, headers=headers, timeout=6).json()
-        if res.get("retCode") == 0:
-            raw_list = res.get("result", {}).get("list", [])
-            if len(raw_list) >= 20:
-                raw_list = list(reversed(raw_list))
-                df = pd.DataFrame(raw_list, columns=["open_time", "open", "high", "low", "close", "volume", "turnover"])
-                for col in ["open", "high", "low", "close", "volume"]:
-                    df[col] = df[col].astype(float)
-                return df
+        res = requests.get(url, headers=HEADERS, timeout=6).json()
+        if isinstance(res, list) and len(res) >= 20:
+            df = pd.DataFrame(res, columns=[
+                "open_time", "open", "high", "low", "close", "volume",
+                "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
+            ])
+            for col in ["open", "high", "low", "close", "volume"]:
+                df[col] = df[col].astype(float)
+            return df
     except Exception:
         pass
     return None
-
-def get_funding_rate(symbol):
-    """ফান্ডিং রেট ফেচিং"""
-    url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-    try:
-        res = requests.get(url, headers=headers, timeout=4).json()
-        if res.get("retCode") == 0:
-            t_list = res.get("result", {}).get("list", [])
-            if t_list:
-                return float(t_list[0].get("fundingRate", 0.0)) * 100
-    except Exception:
-        pass
-    return 0.0
 
 def run_scanner():
     start_time = time.time()
@@ -106,7 +111,7 @@ def run_scanner():
             print(f"Progress: [{scanned_count}/{total_pairs}] টি সম্পন্ন...")
 
         # ১. ডেইলি ট্রেন্ড চেক
-        df_1d = get_klines(sym, interval="D", limit=60)
+        df_1d = get_klines(sym, interval="1d", limit=60)
         if df_1d is None:
             time.sleep(0.02)
             continue
@@ -138,7 +143,7 @@ def run_scanner():
             continue
 
         # ৩. ৪-ঘণ্টার বাউন্স ও ভলিউম
-        df_4h = get_klines(sym, interval="240", limit=30)
+        df_4h = get_klines(sym, interval="4h", limit=30)
         if df_4h is None:
             time.sleep(0.02)
             continue
@@ -147,12 +152,6 @@ def run_scanner():
         last_4h = df_4h.iloc[-1]
         is_green = last_4h["close"] >= last_4h["open"]
         has_volume = last_4h["volume"] >= (last_4h["vol_sma"] * 0.75)
-
-        # ৪. ফান্ডিং রেট ফিল্টার
-        fr = get_funding_rate(sym)
-        if fr > 0.025:
-            time.sleep(0.02)
-            continue
 
         if is_green and has_volume:
             entry_p = d_close
@@ -165,7 +164,6 @@ def run_scanner():
                 "price": entry_p,
                 "ma_type": ma_label,
                 "range_3d": range_3d,
-                "funding": fr,
                 "sl": sl_p,
                 "tp1": tp1_p,
                 "tp2": tp2_p
@@ -189,7 +187,6 @@ def run_scanner():
             msg += f"• সাপোর্ট বেস: <code>{coin['ma_type']}</code>\n"
             msg += f"• এন্ট্রি জোন: <code>{coin['price']:.4f}</code>\n"
             msg += f"• ৩-দিনের রেঞ্জ: <code>{coin['range_3d']:.2f}%</code>\n"
-            msg += f"• ফান্ডিং রেট: <code>{coin['funding']:.4f}%</code>\n"
             msg += f"🛑 স্টপ-লস: <code>{coin['sl']:.4f} (-5.0%)</code>\n"
             msg += f"🎯 TP 1: <code>{coin['tp1']:.4f} (+5.0%)</code>\n"
             msg += f"🚀 TP 2: <code>{coin['tp2']:.4f} (+10.0%)</code>\n"
@@ -201,7 +198,7 @@ def run_scanner():
         msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
         msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n\n"
         msg += "🛡️ <b>ফলাফল: কোনো কয়েন শর্ত পূরণ করেনি।</b>\n"
-        msg += "💡 <i>পুরো ৫০০+ ফিউচার্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। ক্যাপিটাল সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
+        msg += "💡 <i>পুরো ৫০০+ ফিউচার্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। মূলধন সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
         send_telegram_message(msg)
 
 if __name__ == "__main__":
