@@ -1,9 +1,7 @@
 import streamlit as st
 import ccxt
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
-from datetime import datetime
 
 st.set_page_config(page_title="Institutional Swing Backtest", layout="wide")
 
@@ -12,25 +10,11 @@ st.markdown("গত ৪ দিনে এপিআইয়ের তৈরি ক�
 
 @st.cache_data(ttl=300)
 def get_historical_klines(symbol, timeframe="4h", limit=120):
-    """
-    CCXT লাইব্রেরি ব্যবহার করে ডেটা ফেচিং (Streamlit Cloud এর US IP জিও-ব্লক বাইপাস করে)
-    """
-    # 1. CCXT Binance Futures / Spot
     try:
-        exchange = ccxt.binance({
-            'enableRateLimit': True,
-            'options': {'defaultType': 'future'}
-        })
-        # সিম্বল স্ট্যান্ডার্ড ফরম্যাটে রূপান্তর (যেমন TRXUSDT -> TRX/USDT:USDT বা TRX/USDT)
-        base_sym = symbol.replace("USDT", "")
-        formatted_sym = f"{base_sym}/USDT:USDT"
+        exchange = ccxt.binance({'enableRateLimit': True})
+        clean_sym = symbol.replace("USDT", "") + "/USDT"
+        ohlcv = exchange.fetch_ohlcv(clean_sym, timeframe=timeframe, limit=limit)
         
-        try:
-            ohlcv = exchange.fetch_ohlcv(formatted_sym, timeframe=timeframe, limit=limit)
-        except Exception:
-            # স্পট ফরম্যাটে ট্রাই
-            ohlcv = exchange.fetch_ohlcv(f"{base_sym}/USDT", timeframe=timeframe, limit=limit)
-
         if ohlcv and len(ohlcv) >= 30:
             df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
             df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
@@ -40,10 +24,11 @@ def get_historical_klines(symbol, timeframe="4h", limit=120):
     except Exception:
         pass
 
-    # 2. অল্টারনেটিভ ফলব্যাক: KuCoin / GateIO সরাসরি বাইপাস (যদি বাইনান্স কোনো কারণে ব্লক ধরে)
     try:
-        kucoin = ccxt.kucoinfutures({'enableRateLimit': True})
-        ohlcv = kucoin.fetch_ohlcv(f"{symbol.replace('USDT', '')}USDTM", timeframe=timeframe, limit=limit)
+        kucoin = ccxt.kucoin({'enableRateLimit': True})
+        clean_sym = symbol.replace("USDT", "") + "/USDT"
+        ohlcv = kucoin.fetch_ohlcv(clean_sym, timeframe=timeframe, limit=limit)
+        
         if ohlcv and len(ohlcv) >= 30:
             df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
             df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
@@ -56,12 +41,10 @@ def get_historical_klines(symbol, timeframe="4h", limit=120):
     return None
 
 def simulate_strategy(df):
-    """মুভিং এভারেজ রিটেস্ট সিমুলেশন"""
     df["sma50"] = df["close"].rolling(50, min_periods=20).mean()
     df["sma200"] = df["close"].rolling(200, min_periods=50).mean()
     
     signals = []
-    # গত ৪ দিন = ২৪টি 4-ঘণ্টার ক্যান্ডেল
     scan_start_idx = max(20, len(df) - 24)
     
     for i in range(scan_start_idx, len(df)):
@@ -76,38 +59,41 @@ def simulate_strategy(df):
             retest_hit = (row["low"] <= ma_val) or (0 <= dist_pct <= 4.5)
             
             if retest_hit and row["close"] >= ma_val:
-                entry_price = row["close"]
-                stop_loss = ma_val * 0.965
+                entry_price = float(row["close"])
+                stop_loss = float(ma_val * 0.965)
                 risk = max(entry_price - stop_loss, entry_price * 0.035)
                 
-                tp1 = entry_price + (risk * 1.5)
-                tp2 = entry_price + (risk * 2.5)
-                tp3 = entry_price + (risk * 4.0)
+                tp1 = float(entry_price + (risk * 1.5))
+                tp2 = float(entry_price + (risk * 2.5))
+                tp3 = float(entry_price + (risk * 4.0))
                 
                 outcome = "ACTIVE"
                 pnl_pct = 0.0
                 
                 for j in range(i + 1, len(df)):
                     future_row = df.iloc[j]
-                    if future_row["low"] <= stop_loss:
+                    f_high = float(future_row["high"])
+                    f_low = float(future_row["low"])
+                    
+                    if f_low <= stop_loss:
                         outcome = "SL HIT ❌"
                         pnl_pct = ((stop_loss - entry_price) / entry_price) * 100
                         break
-                    elif future_row["high"] >= tp3:
+                    elif f_high >= tp3:
                         outcome = "TP 3 HIT 🚀"
                         pnl_pct = ((tp3 - entry_price) / entry_price) * 100
                         break
-                    elif future_row["high"] >= tp2:
+                    elif f_high >= tp2:
                         outcome = "TP 2 HIT 🎯"
                         pnl_pct = ((tp2 - entry_price) / entry_price) * 100
                         break
-                    elif future_row["high"] >= tp1:
+                    elif f_high >= tp1:
                         outcome = "TP 1 HIT 🟢"
                         pnl_pct = ((tp1 - entry_price) / entry_price) * 100
                         break
                 
                 if outcome == "ACTIVE":
-                    pnl_pct = ((df.iloc[-1]["close"] - entry_price) / entry_price) * 100
+                    pnl_pct = ((float(df.iloc[-1]["close"]) - entry_price) / entry_price) * 100
 
                 signals.append({
                     "Signal Time": row["open_time"],
@@ -123,7 +109,6 @@ def simulate_strategy(df):
                 
     return signals
 
-# সাইডবার কন্ট্রোল
 st.sidebar.header("⚙️ সিমুলেশন কন্ট্রোল")
 target_symbol = st.sidebar.text_input("কয়েনের প্রতীক লিখুন:", value="TRXUSDT").upper().strip()
 
@@ -189,4 +174,8 @@ if target_symbol:
                 title=f"{target_symbol} 4H Structure & Verified Trades",
                 yaxis_title="Price (USDT)"
             )
-            st.plotly_chart(fig, use_container_width
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("ℹ️ এই কয়েনটিতে গত ৪ দিনে ৫০/২০০ SMA রিটেস্ট ফিল্টার অনুযায়ী কোনো ভ্যালিড সিগন্যাল তৈরি হয়নি।")
+    else:
+        st.error("ডেটা লোড করা যায়নি। এক্সচেঞ্জ এপিআই রেসপন্স দিচ্ছে না।")
