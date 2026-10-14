@@ -9,16 +9,13 @@ st.set_page_config(
 )
 
 # ========================================================
-# 🎨 Professional Dark Cyberpunk Theme (White Glitch 100% Fixed)
+# 🎨 Professional Dark Cyberpunk Theme
 # ========================================================
 CUSTOM_CSS = """
 <style>
-/* Streamlit Header Bar */
 header[data-testid="stHeader"] {
     background-color: rgba(10, 15, 29, 0.95) !important;
 }
-
-/* Full Page Background */
 .stApp {
     background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
                 url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
@@ -28,13 +25,9 @@ header[data-testid="stHeader"] {
     color: #F8FAFC !important;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
-
-/* Global Text Colors */
 label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     color: #F8FAFC !important;
 }
-
-/* Selection Color Fix: ক্লিক বা সিলেক্ট করলে যাতে কোনো কিছু সাদা না হয়ে যায় */
 ::selection {
     background: #0284C7 !important;
     color: #FFFFFF !important;
@@ -43,8 +36,6 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     background: #0284C7 !important;
     color: #FFFFFF !important;
 }
-
-/* Header Gradient */
 .terminal-title {
     font-size: 2.2rem;
     font-weight: 800;
@@ -53,14 +44,11 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.5px;
 }
-
 .terminal-subtitle {
     font-size: 0.95rem;
     color: #CBD5E1 !important;
     margin-top: -6px;
 }
-
-/* Glass Panels */
 .glass-panel {
     background: rgba(17, 24, 39, 0.75);
     backdrop-filter: blur(12px);
@@ -71,8 +59,6 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     margin-bottom: 20px;
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
-
-/* Multi-Timeframe Tabs */
 .stTabs [data-baseweb="tab-list"] {
     gap: 12px;
 }
@@ -89,16 +75,12 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     color: #FBBF24 !important;
     border-bottom: 2px solid #F59E0B !important;
 }
-
-/* Dataframe Container */
 div[data-testid="stDataFrame"] {
     background: rgba(15, 23, 42, 0.85) !important;
     border-radius: 14px !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     padding: 10px;
 }
-
-/* Action Button */
 .stButton > button {
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
     color: #000000 !important;
@@ -107,14 +89,11 @@ div[data-testid="stDataFrame"] {
     border: none !important;
     padding: 10px 22px !important;
     box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35) !important;
-    transition: all 0.3s ease !important;
 }
 .stButton > button:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5) !important;
 }
-
-/* 🎯 ডাউনলোড বাটন সাদা হয়ে লেখা অদৃশ্য হওয়া ফিক্স */
 .stDownloadButton button,
 div[data-testid="stDownloadButton"] > button {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
@@ -124,16 +103,7 @@ div[data-testid="stDownloadButton"] > button {
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     padding: 10px 22px !important;
     box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
-    transition: all 0.3s ease !important;
 }
-.stDownloadButton button:hover,
-div[data-testid="stDownloadButton"] > button:hover {
-    background: linear-gradient(135deg, #34D399 0%, #10B981 100%) !important;
-    color: #FFFFFF !important;
-    transform: translateY(-2px);
-}
-
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background-color: rgba(11, 15, 25, 0.95) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -142,18 +112,14 @@ section[data-testid="stSidebar"] {
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-# ========================================================
 # Sidebar
-# ========================================================
 st.sidebar.markdown("### 👑 Creator Profile")
 st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
 st.sidebar.caption("Social Sentiment & Viral Flow Researcher")
 st.sidebar.markdown("---")
 st.sidebar.info("💡 **Hype Radar Note:** Tracks organic viral surges, Twitter/X narrative shifts, and multi-timeframe price discovery.")
 
-# ========================================================
-# Header Section
-# ========================================================
+# Header
 st.markdown("<div class='terminal-title'>🔥 SOCIAL SENTIMENT & TWITTER HYPE RADAR</div>", unsafe_allow_html=True)
 st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Real-Time Viral Search, Social Momentum & Liquidity Heatmap</div>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
@@ -161,10 +127,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
+session = requests.Session()
+session.headers.update(HEADERS)
 
-# ========================================================
-# Main Page Control Bar
-# ========================================================
+# Control Bar
 col_ctrl1, col_ctrl2 = st.columns([4, 1])
 with col_ctrl1:
     st.markdown("""
@@ -174,18 +140,16 @@ with col_ctrl1:
         </div>
     """, unsafe_allow_html=True)
 with col_ctrl2:
-    refresh_radar = st.button("🔄 Sync Live Social Data", use_container_width=True)
+    if st.button("🔄 Sync Live Social Data", use_container_width=True):
+        st.cache_data.clear()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ========================================================
-# Data Engines
-# ========================================================
 @st.cache_data(ttl=600)
 def get_24h_viral_trending():
     url = "https://api.coingecko.com/api/v3/search/trending"
     try:
-        res = requests.get(url, headers=HEADERS, timeout=6).json()
+        res = session.get(url, timeout=6).json()
         coins = res.get('coins', [])
         data = []
         for item in coins:
@@ -209,11 +173,11 @@ def get_24h_viral_trending():
     except Exception:
         return pd.DataFrame()
 
-@st.cache_data(ttl=1200)
+@st.cache_data(ttl=900)
 def get_multi_day_trending():
-    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=150&page=1&sparkline=false&price_change_percentage=7d,30d"
+    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=120&page=1&sparkline=false&price_change_percentage=7d,30d"
     try:
-        res = requests.get(url, headers=HEADERS, timeout=8).json()
+        res = session.get(url, timeout=8).json()
         if not isinstance(res, list):
             return pd.DataFrame(), pd.DataFrame()
             
@@ -237,7 +201,7 @@ def get_multi_day_trending():
                     "Name": c.get('name', ''),
                     "Price ($)": curr_p,
                     "24h Change (%)": f"{round(float(p_24h or 0), 2):+.2f}%",
-                    "7d Momentum": float(p_7d),
+                    "_sort_val": float(p_7d),
                     "7-Day Gain (%)": f"{round(float(p_7d), 2):+.2f}%",
                     "Market Cap Rank": f"#{mcap_rank}",
                     "Narrative Wave": "🚀 Strong Weekly Inflow" if p_7d >= 15 else ("🟢 Bullish Drift" if p_7d >= 5 else "⚪ Neutral"),
@@ -251,7 +215,7 @@ def get_multi_day_trending():
                     "Name": c.get('name', ''),
                     "Price ($)": curr_p,
                     "24h Change (%)": f"{round(float(p_24h or 0), 2):+.2f}%",
-                    "30d Momentum": float(p_30d),
+                    "_sort_val": float(p_30d),
                     "30-Day Gain (%)": f"{round(float(p_30d), 2):+.2f}%",
                     "Market Cap Rank": f"#{mcap_rank}",
                     "Macro Narrative": "👑 Macro Narrative Leader" if p_30d >= 30 else ("🟢 Sustained Growth" if p_30d >= 10 else "⚪ Consolidation"),
@@ -262,23 +226,22 @@ def get_multi_day_trending():
         df_7d = pd.DataFrame(data_7d)
         df_30d = pd.DataFrame(data_30d)
 
+        # স্পেসজনিত কোনো KeyError ছাড়াই নিরাপদ সর্টিং
         if not df_7d.empty:
-            df_7d = df_7d.sort_values(by="7dMomentum", ascending=False).head(20)
-            df_7d = df_7d.drop(columns=["7dMomentum"])
+            df_7d = df_7d.sort_values(by="_sort_val", ascending=False).head(20)
+            df_7d = df_7d.drop(columns=["_sort_val"])
             df_7d.insert(0, "Rank", range(1, len(df_7d) + 1))
 
         if not df_30d.empty:
-            df_30d = df_30d.sort_values(by="30dMomentum", ascending=False).head(20)
-            df_30d = df_30d.drop(columns=["30dMomentum"])
+            df_30d = df_30d.sort_values(by="_sort_val", ascending=False).head(20)
+            df_30d = df_30d.drop(columns=["_sort_val"])
             df_30d.insert(0, "Rank", range(1, len(df_30d) + 1))
 
         return df_7d, df_30d
     except Exception:
         return pd.DataFrame(), pd.DataFrame()
 
-# ========================================================
-# Interactive Tabs
-# ========================================================
+# Tabs
 tab_24h, tab_7d, tab_30d = st.tabs([
     "⚡ 24 Hours (Immediate Viral Hype)", 
     "📈 7 Days (Sustained Momentum)", 
@@ -294,7 +257,7 @@ COL_CONFIGS = {
     "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
 }
 
-# --- TAB 1: 24H ---
+# 24H
 with tab_24h:
     st.markdown("#### ⚡ 24-Hour Viral & Immediate Search Velocity")
     st.caption("Tokens currently experiencing the highest organic viral engagement, Twitter/X queries, and direct global searches.")
@@ -305,7 +268,7 @@ with tab_24h:
     else:
         st.warning("24h trending metrics temporarily unavailable. Please retry shortly.")
 
-# --- TAB 2: 7D ---
+# 7D
 with tab_7d:
     st.markdown("#### 📈 7-Day Cumulative Hype & Momentum Leaders")
     st.caption("High-velocity tokens sustaining multi-day social momentum and continuous institutional capital flow over the last 7 days.")
@@ -316,7 +279,7 @@ with tab_7d:
     else:
         st.warning("7-day momentum metrics temporarily unavailable. Please retry shortly.")
 
-# --- TAB 3: 30D ---
+# 30D
 with tab_30d:
     st.markdown("#### 🟡 30-Day Macro Narrative & Sector Flow Leaders")
     st.caption("Market leaders dominating monthly institutional discussions, capital inflows, and dominant crypto sector narratives.")
@@ -327,9 +290,6 @@ with tab_30d:
     else:
         st.warning("30-day macro metrics temporarily unavailable. Please retry shortly.")
 
-# ========================================================
-# Footer
-# ========================================================
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
 st.markdown(
     """
