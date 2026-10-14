@@ -2,17 +2,14 @@ import time
 import requests
 import pandas as pd
 import numpy as np
+import ccxt
 from datetime import datetime
 
 # ==========================================
-# টেলিগ্রাম কনফিগারেশন সরাসরি সেট করা হলো
+# আপনার আসল টেলিগ্রাম টোকেন ও চ্যাট আইডি দিন
 # ==========================================
-TELEGRAM_BOT_TOKEN = "7784384950:AAHk692_rC3N9N5_6Z6q3e7F0y8X1w2V3u4"
-TELEGRAM_CHAT_ID = "-1002234567890"
-
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
+TELEGRAM_BOT_TOKEN = "এখানে_আপনার_আসল_বট_টোকেন_দিন"
+TELEGRAM_CHAT_ID = "এখানে_আপনার_চ্যাট_বা_চ্যানেল_আইডি_দিন"
 
 EXCLUDE_SYMBOLS = [
     "USDCUSDT", "PAXGUSDT", "BTCDOMUSDT", "EURUSDT", 
@@ -20,7 +17,10 @@ EXCLUDE_SYMBOLS = [
 ]
 
 def send_telegram_message(message):
-    """টেলিগ্রামে এইচটিএমএল ফরম্যাটে মেসেজ পাঠায়"""
+    """টেলিগ্রামে মেসেজ পাঠায় এবং স্ট্যাটাস প্রিন্ট করে"""
+    if not TELEGRAM_BOT_TOKEN or "এখানে_আপনার" in TELEGRAM_BOT_TOKEN:
+        print("❌ সঠিক টেলিগ্রাম টোকেন বসানো হয়নি!")
+        return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -31,38 +31,46 @@ def send_telegram_message(message):
     try:
         res = requests.post(url, json=payload, timeout=12)
         print("Telegram Response Status:", res.status_code)
+        if res.status_code != 200:
+            print("Telegram Error Detail:", res.text)
     except Exception as e:
         print(f"Telegram Exception: {e}")
 
 def get_all_futures_symbols():
-    """Bybit গ্লোবাল এপিআই থেকে ৫০০+ ফিউচার্স পেয়ার ফেচ করে (বাইনান্স ব্লকিং এড়িয়ে)"""
+    """CCXT এর মাধ্যমে Bybit ফিউচার্সের সবকটি সক্রিয় USDT পেয়ার ফেচিং"""
+    try:
+        exchange = ccxt.bybit({'enableRateLimit': True, 'options': {'defaultType': 'future'}})
+        markets = exchange.load_markets()
+        symbols = []
+        for sym, data in markets.items():
+            if data.get('linear') and data.get('active') and sym.endswith('/USDT:USDT'):
+                clean_sym = sym.replace('/USDT:USDT', 'USDT')
+                if clean_sym not in EXCLUDE_SYMBOLS:
+                    symbols.append(clean_sym)
+        if len(symbols) > 50:
+            print(f"✅ সফলভাবে মোট সক্রিয় ফিউচার্স পেয়ার পাওয়া গেছে: {len(symbols)} টি")
+            return sorted(symbols)
+    except Exception as e:
+        print(f"CCXT Bybit Load Warning: {e}")
+
+    # ডাইরেক্ট রেস্ট এপিআই ব্যাকআপ
     try:
         url = "https://api.bybit.com/v5/market/instruments-info?category=linear"
-        res = requests.get(url, headers=HEADERS, timeout=12).json()
+        res = requests.get(url, timeout=10).json()
         if res.get("retCode") == 0:
-            symbols = []
-            for item in res.get("result", {}).get("list", []):
-                sym = item.get("symbol", "")
-                status = item.get("status", "")
-                if sym.endswith("USDT") and status == "Trading" and sym not in EXCLUDE_SYMBOLS:
-                    symbols.append(sym)
+            symbols = [item['symbol'] for item in res['result']['list'] if item['symbol'].endswith('USDT') and item.get('status') == 'Trading' and item['symbol'] not in EXCLUDE_SYMBOLS]
             if len(symbols) > 50:
-                print(f"✅ সফলভাবে মোট সক্রিয় ফিউচার্স পেয়ার পাওয়া গেছে: {len(symbols)} টি")
+                print(f"✅ ডিরেক্ট এপিআই দিয়ে পেয়ার পাওয়া গেছে: {len(symbols)} টি")
                 return sorted(symbols)
-    except Exception as e:
-        print(f"Bybit API Warning: {e}")
+    except Exception:
+        pass
 
-    # ফলব্যাক তালিকা
-    return [
-        "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
-        "XRPUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", 
-        "APTUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT"
-    ]
+    return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT"]
 
 def get_klines(symbol, interval="D", limit=60):
     url = f"https://api.bybit.com/v5/market/kline?category=linear&symbol={symbol}&interval={interval}&limit={limit}"
     try:
-        res = requests.get(url, headers=HEADERS, timeout=6).json()
+        res = requests.get(url, timeout=6).json()
         if res.get("retCode") == 0:
             raw_list = res.get("result", {}).get("list", [])
             if len(raw_list) >= 20:
@@ -78,7 +86,7 @@ def get_klines(symbol, interval="D", limit=60):
 def get_funding_rate(symbol):
     try:
         url = f"https://api.bybit.com/v5/market/tickers?category=linear&symbol={symbol}"
-        res = requests.get(url, headers=HEADERS, timeout=4).json()
+        res = requests.get(url, timeout=4).json()
         if res.get("retCode") == 0:
             t_list = res.get("result", {}).get("list", [])
             if t_list:
@@ -198,7 +206,7 @@ def run_scanner():
         msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
         msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n\n"
         msg += "🛡️ <b>ফলাফল: কোনো কয়েন শর্ত পূরণ করেনি।</b>\n"
-        msg += "💡 <i>পুরো ৫০০+ ফিউচার্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। ক্যাপিটাল সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
+        msg += "💡 <i>পুরো ৫০০+ ফিউচার্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। মূলধন সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
         send_telegram_message(msg)
 
 if __name__ == "__main__":
