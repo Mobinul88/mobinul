@@ -59,21 +59,9 @@ SECTOR_MAP = {
     'FIL': '📦 DePIN / Storage', 'AR': '📦 Storage', 'HNT': '📡 DePIN', 'THETA': '📡 DePIN / Video'
 }
 
-# হেডার ব্র্যান্ডিং
-col_logo, col_title = st.columns([1, 6])
-with col_logo:
-    if has_custom_logo:
-        st.image(LOGO_PATH, width=95)
-    else:
-        st.markdown("# 🚀")
-
-with col_title:
-    st.title("বাইনান্স ফিউচার্স ইন্টেলিজেন্স টার্মিনাল")
-    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance, CoinGlass & Arkham*")
-
-st.divider()
-
-# সাইডবার সেটিংস
+# ========================================================
+# সাইডবার (শুধুমাত্র প্রোফাইল ও পরিচিতি)
+# ========================================================
 st.sidebar.markdown("### 👑 Creator Profile")
 if has_custom_logo:
     st.sidebar.image(LOGO_PATH, width=120)
@@ -81,22 +69,65 @@ if has_custom_logo:
 st.sidebar.markdown("**Created by:** Mobinul")
 st.sidebar.caption("Crypto Algorithmic & On-Chain Researcher")
 st.sidebar.markdown("---")
+st.sidebar.info("💡 **টিপস:** সব ধরনের স্ক্যান ও লিডিং ফিল্টার সেটিংস এখন সরাসরি মূল ড্যাশবোর্ডের ওপরে রয়েছে।")
 
-st.sidebar.header("⚙️ স্ক্যান সেটিংস")
-sma_choice = st.sidebar.selectbox("মুভিং এভারেজ নির্বাচন করুন", [50, 200], index=1)
-timeframe = st.sidebar.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
-max_dist = st.sidebar.slider("SMA থেকে সর্বোচ্চ দূরত্ব (%)", min_value=1.0, max_value=15.0, value=6.0, step=0.5)
+# ========================================================
+# হেডার ব্র্যান্ডিং
+# ========================================================
+col_logo, col_title = st.columns([1, 8])
+with col_logo:
+    if has_custom_logo:
+        st.image(LOGO_PATH, width=85)
+    else:
+        st.markdown("# 🚀")
 
-st.sidebar.markdown("---")
-st.sidebar.header("🔥 প্রাতিষ্ঠানিক লিডিং ফিল্টার")
-enable_compression = st.sidebar.checkbox("৩-দিনের ভোলাটিলিটি কম্প্রেশন ফিল্টার", value=True)
-max_compression_range = st.sidebar.slider("সর্বোচ্চ ৩-দিনের রেঞ্জ (%)", 5.0, 25.0, 18.0, 1.0) if enable_compression else 100.0
+with col_title:
+    st.title("বাইনান্স ফিউচার্স প্রাতিষ্ঠানিক ইন্টেলিজেন্স টার্মিনাল")
+    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance, CoinGlass & Arkham*")
 
-enable_volume_surge = st.sidebar.checkbox("৪-ঘণ্টার ভলিউম সার্জ ফিল্টার", value=True)
-min_vol_surge = st.sidebar.slider("ন্যূনতম ভলিউম গুণক (x)", 1.0, 3.0, 1.3, 0.1) if enable_volume_surge else 0.0
+st.divider()
 
-enable_oi_check = st.sidebar.checkbox("২৪ ঘণ্টার ওপেন ইন্টারেস্ট (OI) গ্রোথ ট্র্যাকার", value=True)
+# ========================================================
+# মেইন পেজ সেটিংস ড্যাশবোর্ড (গ্রিড লেআউট)
+# ========================================================
+with st.container():
+    st.subheader("⚙️ স্ক্যান কন্ট্রোল ও লিডিং ফিল্টার ড্যাশবোর্ড")
+    
+    col_tech, col_inst = st.columns([1, 1], gap="medium")
+    
+    with col_tech:
+        st.markdown("##### 📊 টেকনিক্যাল ও ট্রেন্ড ফিল্টার")
+        c1, c2 = st.columns(2)
+        with c1:
+            sma_choice = st.selectbox("মুভিং এভারেজ (SMA)", [50, 200], index=1)
+        with c2:
+            timeframe = st.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
+        
+        max_dist = st.slider("SMA থেকে সর্বোচ্চ সাপোর্ট দূরত্ব (%)", min_value=1.0, max_value=15.0, value=6.0, step=0.5)
 
+    with col_inst:
+        st.markdown("##### 🔥 প্রাতিষ্ঠানিক লিডিং সিগন্যাল")
+        enable_compression = st.checkbox("৩-দিনের ভোলাটিলিটি কম্প্রেশন ফিল্টার", value=True)
+        if enable_compression:
+            max_compression_range = st.slider("সর্বোচ্চ ৩-দিনের রেঞ্জ (%)", 5.0, 25.0, 18.0, 1.0)
+        else:
+            max_compression_range = 100.0
+
+        enable_volume_surge = st.checkbox("৪-ঘণ্টার ভলিউম সার্জ ফিল্টার", value=True)
+        if enable_volume_surge:
+            min_vol_surge = st.slider("ন্যূনতম ভলিউম গুণক (x)", 1.0, 3.0, 1.3, 0.1)
+        else:
+            min_vol_surge = 0.0
+
+        enable_oi_check = st.checkbox("২৪ ঘণ্টার ওপেন ইন্টারেস্ট (OI) বৃদ্ধি ট্র্যাকার", value=True)
+
+# মেইন পেজ স্ক্যান বাটন
+st.markdown("<br>", unsafe_allow_html=True)
+scan_triggered = st.button("🚀 স্ক্যান শুরু করুন (Run Full Market Scan)", use_container_width=True, type="primary")
+
+# ========================================================
+# ব্যাকএন্ড ডেটা ফেচিং ফাংশনসমূহ
+# ========================================================
 @st.cache_data(ttl=1800)
 def get_all_futures_symbols():
     """বাইনান্সের সক্রিয় পেয়ার সংগ্রহ"""
@@ -234,7 +265,6 @@ def get_klines_data(symbol, interval, limit):
 
 def check_institutional_setup(symbol, sma_period, interval, max_distance):
     """SMA Retest + 3D Compression + 4H Volume Surge ইন্টিগ্রেটেড ফিল্টার"""
-    # ১. প্রধান টাইমফ্রেমের ডেটা ও SMA চেক
     df = get_klines_data(symbol, interval=interval, limit=sma_period + 30)
     if df is None:
         return None
@@ -256,7 +286,7 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
     if not was_below:
         return None
 
-    # ২. ৩-দিনের কম্প্রেশন ফিল্টার
+    # ৩-দিনের কম্প্রেশন ফিল্টার
     df_1d = df if interval == "1d" else get_klines_data(symbol, interval="1d", limit=10)
     range_3d = 0.0
     if df_1d is not None and len(df_1d) >= 3:
@@ -266,7 +296,7 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
         if enable_compression and range_3d > max_compression_range:
             return None
 
-    # ৩. ৪-ঘণ্টার ভলিউম সার্জ ফিল্টার
+    # ৪-ঘণ্টার ভলিউম সার্জ ফিল্টার
     df_4h = df if interval == "4h" else get_klines_data(symbol, interval="4h", limit=25)
     vol_surge_ratio = 1.0
     if df_4h is not None and len(df_4h) >= 20:
@@ -281,13 +311,11 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
             if not (is_green and vol_surge_ratio >= min_vol_surge):
                 return None
 
-    # ৪. ওপেন ইন্টারেস্ট গ্রোথ
+    # ওপেন ইন্টারেস্ট গ্রোথ
     oi_pct = get_oi_growth(symbol) if enable_oi_check else 0.0
 
     clean_name = symbol.replace("USDT", "")
     category = SECTOR_MAP.get(clean_name, "🌐 Ecosystem")
-
-    # সরাসরি CoinGlass-এর লিকুইডেশন হিটম্যাপ পেজের ইউআরএল
     coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_name}USDT"
 
     return {
@@ -302,8 +330,11 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
         'Heatmap Link': coinglass_url
     }
 
-# স্ক্যান ট্রিগার
-if st.sidebar.button("🚀 Start Scan", use_container_width=True):
+# ========================================================
+# স্ক্যান প্রসেসিং ও রেজাল্ট ডিসপ্লে
+# ========================================================
+if scan_triggered:
+    st.markdown("---")
     with st.spinner("মার্কেট ও গ্লোবাল টোকেনোমিক্স ডেটা সিঙ্ক করা হচ্ছে..."):
         symbols = get_all_futures_symbols()
         market_cache = get_global_market_assets()
@@ -311,7 +342,7 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
     if not symbols:
         st.error("⚠️ পেয়ার লিস্ট লোড করা সম্ভব হয়নি।")
     else:
-        st.info(f"বাইনান্স থেকে সফলভাবে {len(symbols)}টি সক্রিয় পেয়ার লোড হয়েছে। প্রাতিষ্ঠানিক ফিল্টারিং চলছে...")
+        st.info(f"বাইনান্স থেকে সফলভাবে {len(symbols)}টি সক্রিয় পেয়ার লোড হয়েছে। নির্বাচিত ফিল্টারে স্ক্যানিং চলছে...")
         
         progress = st.progress(0)
         status_label = st.empty()
@@ -338,10 +369,9 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
         status_label.empty()
         
         if matched_data:
-            st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি পেয়ার প্রাতিষ্ঠানিক ফিল্টারে কোয়ালিফাই করেছে।")
+            st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি পেয়ার শর্ত পূরণ করেছে।")
             df_result = pd.DataFrame(matched_data)
             
-            # কলামের নিখুঁত ক্রম
             cols = [
                 'Symbol', 'Category', 'Price ($)', f'SMA_{sma_choice}', 'Distance (%)', 
                 '3D Range (%)', '4H Vol Surge', '24h OI Growth',
@@ -369,7 +399,7 @@ if st.sidebar.button("🚀 Start Scan", use_container_width=True):
                 mime="text/csv"
             )
         else:
-            st.warning(f"বর্তমান ফিল্টারে (SMA Retest + 3D Compression + Vol Surge) কোনো কয়েন মেলেনি। সাইডবার থেকে ফিল্টার সেটিংস অ্যাডজাস্ট করে দেখতে পারেন।")
+            st.warning(f"বর্তমান ফিল্টারে (SMA Retest + 3D Compression + Vol Surge) কোনো কয়েন মেলেনি। উপরের প্যানেল থেকে সেটিংস সামান্য অ্যাডজাস্ট করে আবার স্ক্যান দিন।")
 
 st.markdown("---")
 st.markdown(
