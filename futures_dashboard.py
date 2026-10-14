@@ -69,7 +69,7 @@ with col_logo:
 
 with col_title:
     st.title("বাইনান্স ফিউচার্স ইন্টেলিজেন্স টার্মিনাল")
-    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance & Institutional Metrics*")
+    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance, CoinGlass & Arkham*")
 
 st.divider()
 
@@ -99,7 +99,7 @@ enable_oi_check = st.sidebar.checkbox("২৪ ঘণ্টার ওপেন �
 
 @st.cache_data(ttl=1800)
 def get_all_futures_symbols():
-    """বাইনান্সের সক্রিয় পারপেচুয়াল পেয়ার সংগ্রহ"""
+    """বাইনান্সের সক্রিয় পেয়ার সংগ্রহ"""
     sources = [
         "https://data-api.binance.vision/api/v3/exchangeInfo",
         "https://fapi.binance.com/fapi/v1/exchangeInfo"
@@ -123,7 +123,7 @@ def get_all_futures_symbols():
 
 @st.cache_data(ttl=3600)
 def get_global_market_assets():
-    """CoinGecko ও CoinCap থেকে ক্রিপ্টো সাপ্লাই মেটাডাটা ক্যাশ করা"""
+    """CoinGecko ও CoinCap থেকে ক্রিপ্টো মেটাডাটা ক্যাশ করা"""
     cache_map = {}
     for page in [1, 2, 3]:
         try:
@@ -204,4 +204,180 @@ def get_oi_growth(symbol):
         req = session.get(url, timeout=2.0)
         if req.status_code == 200:
             data = req.json()
-            if isinstance(data,
+            if isinstance(data, list) and len(data) >= 2:
+                initial_oi = float(data[0].get("sumOpenInterestValue", 0))
+                current_oi = float(data[-1].get("sumOpenInterestValue", 0))
+                if initial_oi > 0:
+                    return ((current_oi - initial_oi) / initial_oi) * 100
+    except Exception:
+        pass
+    return 0.0
+
+def get_klines_data(symbol, interval, limit):
+    """ক্যান্ডেলস্টিক ডেটা ফেচিং"""
+    url = f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    try:
+        r = session.get(url, timeout=2.5)
+        if r.status_code == 200:
+            res = r.json()
+            if isinstance(res, list) and len(res) >= 20:
+                df = pd.DataFrame(res, columns=[
+                    "open_time", "open", "high", "low", "close", "volume",
+                    "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
+                ])
+                for col in ["open", "high", "low", "close", "volume"]:
+                    df[col] = df[col].astype(float)
+                return df
+    except Exception:
+        pass
+    return None
+
+def check_institutional_setup(symbol, sma_period, interval, max_distance):
+    """SMA Retest + 3D Compression + 4H Volume Surge ইন্টিগ্রেটেড ফিল্টার"""
+    # ১. প্রধান টাইমফ্রেমের ডেটা ও SMA চেক
+    df = get_klines_data(symbol, interval=interval, limit=sma_period + 30)
+    if df is None:
+        return None
+
+    df['sma'] = df['close'].rolling(window=sma_period).mean()
+    current_close = df['close'].iloc[-1]
+    current_low = df['low'].iloc[-1]
+    current_sma = df['sma'].iloc[-1]
+    
+    if pd.isna(current_sma) or current_close < current_sma:
+        return None
+        
+    dist_pct = ((current_close - current_sma) / current_sma) * 100
+    retesting = (dist_pct <= max_distance) or (current_low <= current_sma and current_close >= current_sma)
+    if not retesting:
+        return None
+        
+    was_below = any(df['close'].iloc[-i] < df['sma'].iloc[-i] for i in range(2, 8))
+    if not was_below:
+        return None
+
+    # ২. ৩-দিনের কম্প্রেশন ফিল্টার
+    df_1d = df if interval == "1d" else get_klines_data(symbol, interval="1d", limit=10)
+    range_3d = 0.0
+    if df_1d is not None and len(df_1d) >= 3:
+        high_3d = df_1d["high"].tail(3).max()
+        low_3d = df_1d["low"].tail(3).min()
+        range_3d = ((high_3d - low_3d) / current_close) * 100
+        if enable_compression and range_3d > max_compression_range:
+            return None
+
+    # ৩. ৪-ঘণ্টার ভলিউম সার্জ ফিল্টার
+    df_4h = df if interval == "4h" else get_klines_data(symbol, interval="4h", limit=25)
+    vol_surge_ratio = 1.0
+    if df_4h is not None and len(df_4h) >= 20:
+        df_4h["vol_sma"] = df_4h["volume"].rolling(20, min_periods=5).mean()
+        last_4h = df_4h.iloc[-1]
+        avg_vol = last_4h["vol_sma"]
+        current_vol = last_4h["volume"]
+        vol_surge_ratio = (current_vol / avg_vol) if avg_vol > 0 else 1.0
+        is_green = last_4h["close"] >= last_4h["open"]
+
+        if enable_volume_surge:
+            if not (is_green and vol_surge_ratio >= min_vol_surge):
+                return None
+
+    # ৪. ওপেন ইন্টারেস্ট গ্রোথ
+    oi_pct = get_oi_growth(symbol) if enable_oi_check else 0.0
+
+    clean_name = symbol.replace("USDT", "")
+    category = SECTOR_MAP.get(clean_name, "🌐 Ecosystem")
+
+    # সরাসরি CoinGlass-এর লিকুইডেশন হিটম্যাপ পেজের ইউআরএল
+    coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_name}USDT"
+
+    return {
+        'Symbol': clean_name,
+        'Category': category,
+        'Price ($)': current_close,
+        f'SMA_{sma_period}': round(current_sma, 4),
+        'Distance (%)': f"{round(dist_pct, 2)}%",
+        '3D Range (%)': f"{round(range_3d, 2)}%",
+        '4H Vol Surge': f"{round(vol_surge_ratio, 2)}x",
+        '24h OI Growth': f"{oi_pct:+.2f}%" if oi_pct != 0.0 else "N/A",
+        'Heatmap Link': coinglass_url
+    }
+
+# স্ক্যান ট্রিগার
+if st.sidebar.button("🚀 Start Scan", use_container_width=True):
+    with st.spinner("মার্কেট ও গ্লোবাল টোকেনোমিক্স ডেটা সিঙ্ক করা হচ্ছে..."):
+        symbols = get_all_futures_symbols()
+        market_cache = get_global_market_assets()
+        
+    if not symbols:
+        st.error("⚠️ পেয়ার লিস্ট লোড করা সম্ভব হয়নি।")
+    else:
+        st.info(f"বাইনান্স থেকে সফলভাবে {len(symbols)}টি সক্রিয় পেয়ার লোড হয়েছে। প্রাতিষ্ঠানিক ফিল্টারিং চলছে...")
+        
+        progress = st.progress(0)
+        status_label = st.empty()
+        matched_data = []
+        
+        for idx, sym in enumerate(symbols):
+            progress.progress((idx + 1) / len(symbols))
+            clean_sym = sym.replace("USDT", "")
+            status_label.text(f"স্ক্যান হচ্ছে [{idx+1}/{len(symbols)}]: {clean_sym}")
+            
+            match = check_institutional_setup(sym, sma_choice, timeframe, max_dist)
+            if match:
+                tokenomics = extract_tokenomics(clean_sym, market_cache)
+                slug_val = tokenomics.pop('slug', clean_sym.lower())
+                arkham_url = f"https://arkm.com/explorer/token/{slug_val}"
+                
+                match.update(tokenomics)
+                match['Arkham Link'] = arkham_url
+                matched_data.append(match)
+                
+            time.sleep(0.01)
+            
+        progress.empty()
+        status_label.empty()
+        
+        if matched_data:
+            st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি পেয়ার প্রাতিষ্ঠানিক ফিল্টারে কোয়ালিফাই করেছে।")
+            df_result = pd.DataFrame(matched_data)
+            
+            # কলামের নিখুঁত ক্রম
+            cols = [
+                'Symbol', 'Category', 'Price ($)', f'SMA_{sma_choice}', 'Distance (%)', 
+                '3D Range (%)', '4H Vol Surge', '24h OI Growth',
+                'Heatmap Link', 'Arkham Link',
+                'Circulating', 'Total_Supply', 'Circ_%', 'Unlock_Status'
+            ]
+            available_cols = [c for c in cols if c in df_result.columns]
+            df_result = df_result[available_cols]
+
+            st.dataframe(
+                df_result,
+                column_config={
+                    "Heatmap Link": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+                    "Arkham Link": st.column_config.LinkColumn("Arkham Intelligence", display_text="Open Arkham")
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+            
+            csv_file = df_result.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 সম্পূর্ণ CSV রিপোর্ট ডাউনলোড",
+                data=csv_file,
+                file_name=f"mobin_crypto_institutional_{sma_choice}sma_report.csv",
+                mime="text/csv"
+            )
+        else:
+            st.warning(f"বর্তমান ফিল্টারে (SMA Retest + 3D Compression + Vol Surge) কোনো কয়েন মেলেনি। সাইডবার থেকে ফিল্টার সেটিংস অ্যাডজাস্ট করে দেখতে পারেন।")
+
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center; color: gray; font-size: 13px;'>
+        © 2026 <b>Mobinul Intelligence Terminal</b> | All Rights Reserved.<br>
+        <i>Unauthorized redistribution of this tool or data logic is prohibited.</i>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
