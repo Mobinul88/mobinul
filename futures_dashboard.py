@@ -17,14 +17,17 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-# প্রি-ডিফাইন্ড জনপ্রিয় ক্রিপ্টো সেক্টর ম্যাপিং
+session = requests.Session()
+session.headers.update(HEADERS)
+
+# সেক্টর ম্যাপিং
 SECTOR_MAP = {
     # AI & Big Data
     'FET': '🤖 AI / Data', 'NEAR': '🤖 AI / L1', 'RNDR': '🤖 AI / GPU', 'RENDER': '🤖 AI / GPU',
     'TAO': '🤖 AI', 'WLD': '🤖 AI / Identity', 'AGIX': '🤖 AI', 'ARKM': '🤖 AI / Intel',
     'OCEAN': '🤖 AI / Data', 'GRT': '🤖 AI / Indexing', 'IO': '🤖 AI / Compute',
 
-    # RWA (Real World Assets)
+    # RWA
     'ONDO': '🏛️ RWA', 'LINK': '🏛️ Oracle / RWA', 'PENDLE': '🏛️ RWA / Yield',
     'MKR': '🏛️ RWA / DeFi', 'CFG': '🏛️ RWA', 'TRU': '🏛️ RWA', 'POLYX': '🏛️ RWA',
 
@@ -66,34 +69,44 @@ with col_logo:
 
 with col_title:
     st.title("বাইনান্স ফিউচার্স ইন্টেলিজেন্স টার্মিনাল")
-    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance & Arkham*")
+    st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *Powered by Binance & Institutional Metrics*")
 
 st.divider()
 
-# সাইডবার
+# সাইডবার সেটিংস
 st.sidebar.markdown("### 👑 Creator Profile")
 if has_custom_logo:
     st.sidebar.image(LOGO_PATH, width=120)
 
-st.sidebar.markdown("**Create by:** Mobinul")
+st.sidebar.markdown("**Created by:** Mobinul")
 st.sidebar.caption("Crypto Algorithmic & On-Chain Researcher")
 st.sidebar.markdown("---")
 
 st.sidebar.header("⚙️ স্ক্যান সেটিংস")
 sma_choice = st.sidebar.selectbox("মুভিং এভারেজ নির্বাচন করুন", [50, 200], index=1)
 timeframe = st.sidebar.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
-max_dist = st.sidebar.slider("SMA থেকে সর্বোচ্চ দূরত্ব (%)", min_value=1.0, max_value=10.0, value=5.0, step=0.5)
+max_dist = st.sidebar.slider("SMA থেকে সর্বোচ্চ দূরত্ব (%)", min_value=1.0, max_value=15.0, value=6.0, step=0.5)
+
+st.sidebar.markdown("---")
+st.sidebar.header("🔥 প্রাতিষ্ঠানিক লিডিং ফিল্টার")
+enable_compression = st.sidebar.checkbox("৩-দিনের ভোলাটিলিটি কম্প্রেশন ফিল্টার", value=True)
+max_compression_range = st.sidebar.slider("সর্বোচ্চ ৩-দিনের রেঞ্জ (%)", 5.0, 25.0, 18.0, 1.0) if enable_compression else 100.0
+
+enable_volume_surge = st.sidebar.checkbox("৪-ঘণ্টার ভলিউম সার্জ ফিল্টার", value=True)
+min_vol_surge = st.sidebar.slider("ন্যূনতম ভলিউম গুণক (x)", 1.0, 3.0, 1.3, 0.1) if enable_volume_surge else 0.0
+
+enable_oi_check = st.sidebar.checkbox("২৪ ঘণ্টার ওপেন ইন্টারেস্ট (OI) গ্রোথ ট্র্যাকার", value=True)
 
 @st.cache_data(ttl=1800)
 def get_all_futures_symbols():
-    """বাইনান্সের ১০০% ভ্যালিড সক্রিয় পেয়ার সংগ্রহ"""
+    """বাইনান্সের সক্রিয় পারপেচুয়াল পেয়ার সংগ্রহ"""
     sources = [
-        "https://fapi.binance.com/fapi/v1/exchangeInfo",
-        "https://data-api.binance.vision/api/v3/exchangeInfo"
+        "https://data-api.binance.vision/api/v3/exchangeInfo",
+        "https://fapi.binance.com/fapi/v1/exchangeInfo"
     ]
     for url in sources:
         try:
-            r = requests.get(url, headers=HEADERS, timeout=6)
+            r = session.get(url, timeout=6)
             if r.status_code == 200:
                 data = r.json()
                 symbols = [
@@ -103,19 +116,19 @@ def get_all_futures_symbols():
                     and s.get('status') == 'TRADING'
                 ]
                 if len(symbols) > 50:
-                    return symbols
+                    return sorted(list(set(symbols)))
         except Exception:
             continue
     return []
 
 @st.cache_data(ttl=3600)
 def get_global_market_assets():
-    """CoinGecko ও CoinCap থেকে সম্পূর্ণ ক্রিপ্টো সাপ্লাই এবং মেটাডাটা ক্যাশ করা"""
+    """CoinGecko ও CoinCap থেকে ক্রিপ্টো সাপ্লাই মেটাডাটা ক্যাশ করা"""
     cache_map = {}
     for page in [1, 2, 3]:
         try:
             cg_url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page={page}&sparkline=false"
-            r = requests.get(cg_url, headers=HEADERS, timeout=5)
+            r = session.get(cg_url, timeout=5)
             if r.status_code == 200:
                 for item in r.json():
                     sym = item.get('symbol', '').upper()
@@ -130,7 +143,7 @@ def get_global_market_assets():
 
     try:
         cc_url = "https://api.coincap.io/v2/assets?limit=1000"
-        r2 = requests.get(cc_url, headers=HEADERS, timeout=5)
+        r2 = session.get(cc_url, timeout=5)
         if r2.status_code == 200:
             for item in r2.json().get('data', []):
                 sym = item.get('symbol', '').upper()
@@ -146,7 +159,6 @@ def get_global_market_assets():
     return cache_map
 
 def extract_tokenomics(clean_sym, market_cache):
-    """সাপ্লাই ও আনলক রেশিও হিসাব"""
     item = market_cache.get(clean_sym)
     slug = clean_sym.lower()
     
@@ -185,132 +197,11 @@ def extract_tokenomics(clean_sym, market_cache):
         "slug": slug
     }
 
-def check_sma_retest(symbol, sma_period, interval, max_distance):
-    """ক্যান্ডেল ডাটা সংগ্রহ ও রিটেস্ট অ্যালগরিদম"""
-    urls = [
-        "https://data-api.binance.vision/api/v3/klines",
-        "https://fapi.binance.com/fapi/v1/klines",
-        "https://api.binance.com/api/v3/klines"
-    ]
-    params = {'symbol': symbol, 'interval': interval, 'limit': sma_period + 30}
-    
-    data = None
-    for u in urls:
-        try:
-            r = requests.get(u, params=params, headers=HEADERS, timeout=3)
-            if r.status_code == 200:
-                res = r.json()
-                if isinstance(res, list) and len(res) >= (sma_period + 5):
-                    data = res
-                    break
-        except Exception:
-            continue
-            
-    if not data:
-        return None
-
+def get_oi_growth(symbol):
+    """২৪ ঘণ্টার ওপেন ইন্টারেস্ট গ্রোথ হিসাব"""
+    url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol}&period=4h&limit=7"
     try:
-        df = pd.DataFrame([{'low': float(c[3]), 'close': float(c[4])} for c in data])
-        df['sma'] = df['close'].rolling(window=sma_period).mean()
-        
-        current_close = df['close'].iloc[-1]
-        current_low = df['low'].iloc[-1]
-        current_sma = df['sma'].iloc[-1]
-        
-        if current_close < current_sma:
-            return None
-            
-        dist_pct = ((current_close - current_sma) / current_sma) * 100
-        retesting = (dist_pct <= max_distance) or (current_low <= current_sma and current_close >= current_sma)
-        if not retesting:
-            return None
-            
-        was_below = any(df['close'].iloc[-i] < df['sma'].iloc[-i] for i in range(2, 8))
-        if was_below:
-            clean_name = symbol.replace("USDT", "")
-            # ক্যাটাগরি নির্ধারণ
-            category = SECTOR_MAP.get(clean_name, "🌐 Ecosystem")
-            return {
-                'Symbol': clean_name,
-                'Category': category,
-                'Price ($)': current_close,
-                f'SMA_{sma_period}': round(current_sma, 4),
-                'Distance (%)': f"{round(dist_pct, 2)}%"
-            }
-    except Exception:
-        return None
-    return None
-
-# স্ক্যান ট্রিগার
-if st.sidebar.button("🚀 Start Scan", use_container_width=True):
-    with st.spinner("মার্কেট ও গ্লোবাল টোকেনোমিক্স ডেটা সিঙ্ক করা হচ্ছে..."):
-        symbols = get_all_futures_symbols()
-        market_cache = get_global_market_assets()
-        
-    if not symbols:
-        st.error("⚠️ পেয়ার লিস্ট লোড করা সম্ভব হয়নি।")
-    else:
-        st.info(f"বাইনান্স থেকে সফলভাবে {len(symbols)}টি সক্রিয় পেয়ার লোড হয়েছে। স্ক্যানিং চলছে...")
-        
-        progress = st.progress(0)
-        status_label = st.empty()
-        matched_data = []
-        
-        for idx, sym in enumerate(symbols):
-            progress.progress((idx + 1) / len(symbols))
-            clean_sym = sym.replace("USDT", "")
-            status_label.text(f"স্ক্যান হচ্ছে [{idx+1}/{len(symbols)}]: {clean_sym}")
-            
-            match = check_sma_retest(sym, sma_choice, timeframe, max_dist)
-            if match:
-                tokenomics = extract_tokenomics(clean_sym, market_cache)
-                slug_val = tokenomics.pop('slug', clean_sym.lower())
-                arkham_url = f"https://arkm.com/explorer/token/{slug_val}"
-                
-                match.update(tokenomics)
-                match['Arkham Link'] = arkham_url
-                matched_data.append(match)
-                
-            time.sleep(0.01)
-            
-        progress.empty()
-        status_label.empty()
-        
-        if matched_data:
-            st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি পেয়ার {sma_choice} SMA রিটেস্ট ফিল্টারে পাওয়া গেছে।")
-            df_result = pd.DataFrame(matched_data)
-            
-            # কলামের ক্রম সাজানো (Symbol-এর পরপরই Category)
-            cols = ['Symbol', 'Category', 'Price ($)', f'SMA_{sma_choice}', 'Distance (%)', 'Circulating', 'Total_Supply', 'Circ_%', 'Unlock_Status', 'Arkham Link']
-            available_cols = [c for c in cols if c in df_result.columns]
-            df_result = df_result[available_cols]
-
-            st.dataframe(
-                df_result,
-                column_config={
-                    "Arkham Link": st.column_config.LinkColumn("Arkham Intelligence", display_text="Open Arkham")
-                },
-                use_container_width=True,
-                hide_index=True
-            )
-            
-            csv_file = df_result.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 সম্পূর্ণ CSV রিপোর্ট ডাউনলোড",
-                data=csv_file,
-                file_name=f"mobin_crypto_{sma_choice}sma_report.csv",
-                mime="text/csv"
-            )
-        else:
-            st.warning(f"বর্তমান ফিল্টারে {sma_choice} SMA-এর কোনো রিটেস্ট কয়েন পাওয়া যায়নি। দূরত্বের শতাংশ একটু বাড়িয়ে দেখতে পারেন।")
-
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: gray; font-size: 13px;'>
-        © 2026 <b>Mobinul Intelligence Terminal</b> | All Rights Reserved.<br>
-        <i>Unauthorized redistribution of this tool or data logic is prohibited.</i>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        req = session.get(url, timeout=2.0)
+        if req.status_code == 200:
+            data = req.json()
+            if isinstance(data,
