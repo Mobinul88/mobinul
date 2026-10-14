@@ -1,0 +1,36 @@
+name: Hourly Binance Forward Pump Tracker
+
+on:
+  schedule:
+    # প্রতি ১ ঘণ্টা পর পর স্বয়ংক্রিয়ভাবে রান হবে (UTC অনুযায়ী প্রতি ঘণ্টার শুরুতে)
+    - cron: '0 * * * *'
+  workflow_dispatch: # প্রয়োজন হলে আপনি ম্যানুয়ালিও রান করতে পারবেন
+
+jobs:
+  run-tracker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests pandas
+
+      - name: Execute Hourly Tracker
+        run: |
+          python hourly_forward_tracker.py
+
+      - name: Commit and Push Updated Logs
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add forward_cycle_log.csv engine_config.json
+          git commit -m "Auto-update hourly forward pump logs [skip ci]" || echo "No changes to commit"
+          git push
