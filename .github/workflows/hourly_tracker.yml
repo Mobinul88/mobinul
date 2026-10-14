@@ -6,7 +6,6 @@ on:
     - cron: '0 * * * *'
   workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
 
-# রিপোজিটরিতে নতুন লগ ফাইল পুশ করার পারমিশন
 permissions:
   contents: write
 
@@ -35,6 +34,5 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add forward_cycle_log.csv engine_config.json
-          git commit -m "Auto-update hourly forward pump logs [skip ci]" || echo "No changes to commit"
-          git push
+          git add -A
+          git diff --staged --quiet || (git commit -m "Auto-update hourly forward pump logs [skip ci]" && git push)
