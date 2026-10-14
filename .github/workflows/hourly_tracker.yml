@@ -2,9 +2,13 @@ name: Hourly Binance Forward Pump Tracker
 
 on:
   schedule:
-    # প্রতি ১ ঘণ্টা পর পর স্বয়ংক্রিয়ভাবে রান হবে (UTC অনুযায়ী প্রতি ঘণ্টার শুরুতে)
+    # প্রতি ১ ঘণ্টা পর পর স্বয়ংক্রিয়ভাবে চলবে
     - cron: '0 * * * *'
-  workflow_dispatch: # প্রয়োজন হলে আপনি ম্যানুয়ালিও রান করতে পারবেন
+  workflow_dispatch: # ম্যানুয়ালি রান করার অপশন
+
+# রিপোজিটরিতে নতুন লগ ফাইল পুশ করার পারমিশন
+permissions:
+  contents: write
 
 jobs:
   run-tracker:
@@ -12,10 +16,10 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: setup-python@v4
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
