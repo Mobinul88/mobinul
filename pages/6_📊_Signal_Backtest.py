@@ -6,10 +6,9 @@ from datetime import datetime
 
 st.set_page_config(page_title="Portfolio Signal Audit", layout="wide")
 
-st.title("📊 4-Day Institutional Portfolio Signal Audit")
-st.markdown("গত ৪ দিনে জেনারেট হওয়া সমস্ত সিগন্যালের 종합 পারফরম্যান্স, ওভারঅল PnL এবং ফার্স্ট-এন্ট্রি রেজাল্ট।")
+st.title("📊 4-Day Institutional Portfolio Signal Audit (Optimized)")
+st.markdown("কনফার্মেশন ফিল্টার ও ভলিউম রিজেকশন যুক্ত করার পর সিগন্যালের নির্ভুলতা এবং উইন-রেট।")
 
-# টেস্ট ও পর্যবেক্ষণের জন্য শীর্ষ ৩০টি সক্রিয় পেয়ারের তালিকা
 SCAN_SYMBOLS = [
     "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
     "XRPUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT",
@@ -18,9 +17,8 @@ SCAN_SYMBOLS = [
     "MEMEUSDT", "BATUSDT", "MAGICUSDT", "LUMIAUSDT", "AAVEUSDT", "GALAUSDT"
 ]
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def fetch_klines(symbol, timeframe="4h", limit=120):
-    """CCXT এর মাধ্যমে ক্যান্ডেল ডেটা ফেচিং"""
     try:
         exchange = ccxt.binance({'enableRateLimit': True})
         clean_sym = symbol.replace("USDT", "") + "/USDT"
@@ -33,44 +31,40 @@ def fetch_klines(symbol, timeframe="4h", limit=120):
             return df
     except Exception:
         pass
-    
-    try:
-        kucoin = ccxt.kucoin({'enableRateLimit': True})
-        clean_sym = symbol.replace("USDT", "") + "/USDT"
-        ohlcv = kucoin.fetch_ohlcv(clean_sym, timeframe=timeframe, limit=limit)
-        if ohlcv and len(ohlcv) >= 30:
-            df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
-            df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
-            for c in ["open", "high", "low", "close", "volume"]:
-                df[c] = df[c].astype(float)
-            return df
-    except Exception:
-        pass
     return None
 
 def analyze_coin_first_signal(df, symbol):
-    """কয়েনটিতে গত ৪ দিনের প্রথম ভ্যালিড সিগন্যাল ফিল্টার ও ফলাফল নির্ধারণ"""
     df["sma50"] = df["close"].rolling(50, min_periods=20).mean()
     df["sma200"] = df["close"].rolling(200, min_periods=50).mean()
+    df["vol_sma"] = df["volume"].rolling(20, min_periods=5).mean()
 
-    # গত ৪ দিন = ২৪টি 4-ঘণ্টার ক্যান্ডেল
     scan_start = max(20, len(df) - 24)
 
     for i in range(scan_start, len(df)):
         row = df.iloc[i]
+        prev_row = df.iloc[i-1]
         
         for ma_col, ma_name in [("sma50", "50 SMA"), ("sma200", "200 SMA")]:
             ma_val = row[ma_col]
             if pd.isna(ma_val):
                 continue
 
-            dist_pct = ((row["close"] - ma_val) / ma_val) * 100
-            retest_hit = (row["low"] <= ma_val) or (0 <= dist_pct <= 4.5)
+            # ফিল্টার ১: এসএমএ রিটেস্ট বাউন্স (লোয়ার উইক এসএমএ টাচ করলেও ক্লোজ উপরে)
+            tested_ma = (row["low"] <= ma_val * 1.01) and (row["close"] >= ma_val)
+            
+            # ফিল্টার ২: বুলিশ ক্যান্ডেল কনফার্মেশন (সবুজ ক্যান্ডেল + রিজেকশন)
+            is_bullish_candle = (row["close"] > row["open"]) and (row["close"] > prev_row["close"])
+            lower_wick = min(row["open"], row["close"]) - row["low"]
+            candle_body = abs(row["close"] - row["open"])
+            has_rejection_wick = lower_wick >= (candle_body * 0.4)
 
-            if retest_hit and row["close"] >= ma_val:
+            # ফিল্টার ৩: ভলিউম সাপোর্ট (অ্যাকুমুলেশন ভলিউম)
+            has_volume = row["volume"] >= (row["vol_sma"] * 0.9)
+
+            if tested_ma and is_bullish_candle and (has_rejection_wick or has_volume):
                 entry = float(row["close"])
-                sl = float(ma_val * 0.965)
-                risk = max(entry - sl, entry * 0.035)
+                sl = float(min(row["low"], ma_val * 0.98))
+                risk = max(entry - sl, entry * 0.025)
 
                 tp1 = entry + (risk * 1.5)
                 tp2 = entry + (risk * 2.5)
@@ -99,7 +93,6 @@ def analyze_coin_first_signal(df, symbol):
                 if outcome == "ACTIVE":
                     pnl = ((float(df.iloc[-1]["close"]) - entry) / entry) * 100
 
-                # প্রথম সিগন্যাল পেলেই রিটার্ন (পরবর্তী পুনরাবৃত্তি বাদ দেওয়া হবে)
                 return {
                     "Symbol": symbol,
                     "First Signal Time": row["open_time"].strftime("%Y-%m-%d %H:%M"),
@@ -115,8 +108,7 @@ def analyze_coin_first_signal(df, symbol):
                 }
     return None
 
-# মূল এক্সিকিউশন
-with st.spinner("মার্কেটের সক্রিয় কয়েনগুলো স্ক্যান করে সার্বিক সিগন্যাল হিস্ট্রি তৈরি করা হচ্ছে..."):
+with st.spinner("ফিল্টার অপ্টিমাইজেশনের মাধ্যমে কোয়ালিটি সিগন্যাল যাচাই করা হচ্ছে..."):
     results = []
     for sym in SCAN_SYMBOLS:
         df_kline = fetch_klines(sym)
@@ -128,8 +120,7 @@ with st.spinner("মার্কেটের সক্রিয় কয়ে�
 if results:
     res_df = pd.DataFrame(results)
 
-    # সার্বিক পোর্টফোলিও মেট্রিক কার্ডস
-    st.subheader("📌 সামগ্রিক সিগন্যাল সামারি (Overall Portfolio Status)")
+    st.subheader("📌 অপ্টিমাইজড সিগন্যাল সামারি (High-Probability Setups)")
     total_signals = len(res_df)
     tp_hits = len(res_df[res_df["Status"].str.contains("TP")])
     sl_hits = len(res_df[res_df["Status"].str.contains("SL")])
@@ -139,7 +130,7 @@ if results:
     avg_pnl = res_df["PnL %"].mean()
 
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("মোট অনন্য সিগন্যাল", f"{total_signals} টি")
+    m1.metric("কোয়ালিটি সিগন্যাল", f"{total_signals} টি")
     m2.metric("সফল (TP Hit)", f"{tp_hits} টি", f"{win_rate:.1f}% Win Rate")
     m3.metric("স্টপ লস (SL Hit)", f"{sl_hits} টি")
     m4.metric("চলমান (Active)", f"{active_trades} টি")
@@ -147,8 +138,6 @@ if results:
 
     st.markdown("---")
 
-    # পূর্ণ সিগন্যাল তালিকা
-    st.subheader("📋 সমস্ত সিগন্যালের বিস্তারিত তালিকা (একক এন্ট্রি ভিত্তিক)")
     display_cols = ["Symbol", "First Signal Time", "MA Setup", "Entry", "Stop Loss", "TP1", "TP2", "Status", "PnL %"]
     st.dataframe(
         res_df[display_cols].style.format({
@@ -163,10 +152,8 @@ if results:
 
     st.markdown("---")
 
-    # ইন্টারেক্টিভ ক্যান্ডেলস্টিক চার্ট
-    st.subheader("🕯️ সিগন্যালের চার্ট ভিজ্যুয়ালাইজার")
-    selected_symbol = st.selectbox("চার্ট দেখার জন্য যেকোনো একটি সিগন্যাল নির্বাচন করুন:", res_df["Symbol"].tolist())
-
+    st.subheader("🕯️ ফিল্টার্ড সিগন্যালের চার্ট ভিউ")
+    selected_symbol = st.selectbox("চার্ট যাচাই করার জন্য কয়েন নির্বাচন করুন:", res_df["Symbol"].tolist())
     selected_data = next(item for item in results if item["Symbol"] == selected_symbol)
     df_plot = selected_data["df"]
 
@@ -179,12 +166,11 @@ if results:
     if not df_plot["sma200"].isna().all():
         fig.add_trace(go.Scatter(x=df_plot["open_time"], y=df_plot["sma200"], line=dict(color='orange', width=1.5), name="SMA 200"))
 
-    # ট্রেড মার্কার
     s_time = selected_data["First Signal Time"]
     entry_p = selected_data["Entry"]
     fig.add_annotation(
         x=s_time, y=entry_p,
-        text=f"FIRST ENTRY ({selected_data['Status']})",
+        text=f"CONFIRMED ({selected_data['Status']})",
         showarrow=True, arrowhead=2, arrowcolor="green", arrowsize=1.2,
         bgcolor="black", font=dict(color="white", size=10)
     )
@@ -196,10 +182,10 @@ if results:
         xaxis_rangeslider_visible=False,
         height=550,
         template="plotly_dark",
-        title=f"{selected_symbol} 4H Verified Structure",
+        title=f"{selected_symbol} 4H Confirmed Structure",
         yaxis_title="Price (USDT)"
     )
     st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.info("ℹ️ গত ৪ দিনে স্ক্যান করা কয়েনগুলোর কোনোটিতেই ৫০/২০০ SMA রিটেস্ট সিগন্যাল তৈরি হয়নি।")
+    st.info("ℹ️ এই ফিল্টারে কোনো ফলস ট্রেড আসেনি। মার্কেট প্রপার রিবাউন্ড কনফার্মেশন দেয়নি।")
