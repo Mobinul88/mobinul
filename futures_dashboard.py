@@ -8,22 +8,22 @@ LOGO_PATH = "logo.png"
 has_custom_logo = os.path.exists(LOGO_PATH)
 
 st.set_page_config(
-    page_title="Mobin's Crypto Terminal",
+    page_title="Mobin's Institutional Crypto Terminal",
     page_icon=LOGO_PATH if has_custom_logo else "🚀",
     layout="wide"
 )
 
 # ========================================================
-# 🎨 আল্ট্রা-প্রো ডার্ক ক্রিপ্টো গ্লাস থিম (100% Contrast Fixed)
+# 🎨 Professional Dark Cyberpunk Glassmorphic Theme
 # ========================================================
 CUSTOM_CSS = """
 <style>
-/* ওপরের সাদা হেডার বার ডার্ক করা */
+/* Darken top Streamlit header bar */
 header[data-testid="stHeader"] {
     background-color: rgba(10, 15, 29, 0.95) !important;
 }
 
-/* ফুল পেজ ব্যাকগ্রাউন্ড */
+/* Full Page Background with Overlay */
 .stApp {
     background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
                 url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
@@ -34,12 +34,12 @@ header[data-testid="stHeader"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* সব টেক্সট ও লেবেলের উজ্জ্বলতা ফিক্স */
+/* Global Text and Label Contrast */
 label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     color: #F8FAFC !important;
 }
 
-/* ফ্রস্টেড গ্লাস কার্ড */
+/* Frosted Glass Panels */
 .glass-panel {
     background: rgba(17, 24, 39, 0.75);
     backdrop-filter: blur(12px);
@@ -51,7 +51,7 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
 
-/* হেডার টাইটেল */
+/* Header Glowing Gradient Title */
 .terminal-title {
     font-size: 2.2rem;
     font-weight: 800;
@@ -67,7 +67,7 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     margin-top: -6px;
 }
 
-/* ড্রপডাউন সিলেক্ট বক্স ফিক্স */
+/* Dropdown Inputs Styling */
 div[data-baseweb="select"] {
     background-color: rgba(30, 41, 59, 0.9) !important;
     border-radius: 10px !important;
@@ -78,7 +78,7 @@ div[data-baseweb="select"] * {
     color: #FFFFFF !important;
 }
 
-/* রান স্ক্যান বাটন */
+/* Action Execution Button */
 .stButton > button {
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
     color: #000000 !important;
@@ -96,7 +96,7 @@ div[data-baseweb="select"] * {
     background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%) !important;
 }
 
-/* টেবিল গ্লাস ব্যাকগ্রাউন্ড */
+/* Dataframe Glass Styling */
 div[data-testid="stDataFrame"] {
     background: rgba(15, 23, 42, 0.85) !important;
     border-radius: 14px !important;
@@ -104,7 +104,7 @@ div[data-testid="stDataFrame"] {
     padding: 10px;
 }
 
-/* সাইডবার */
+/* Sidebar Custom Styling */
 section[data-testid="stSidebar"] {
     background-color: rgba(11, 15, 25, 0.95) !important;
     border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -120,7 +120,7 @@ HEADERS = {
 session = requests.Session()
 session.headers.update(HEADERS)
 
-# সেক্টর ম্যাপিং
+# Predefined Sector Mapping
 SECTOR_MAP = {
     'FET': '🤖 AI / Data', 'NEAR': '🤖 AI / L1', 'RNDR': '🤖 AI / GPU', 'RENDER': '🤖 AI / GPU',
     'TAO': '🤖 AI', 'WLD': '🤖 AI / Identity', 'AGIX': '🤖 AI', 'ARKM': '🤖 AI / Intel',
@@ -151,17 +151,21 @@ SECTOR_MAP = {
     'FIL': '📦 DePIN / Storage', 'AR': '📦 Storage', 'HNT': '📡 DePIN', 'THETA': '📡 DePIN / Video'
 }
 
-# সাইডবার
+# ========================================================
+# Sidebar Configuration
+# ========================================================
 st.sidebar.markdown("### 👑 Creator Profile")
 if has_custom_logo:
     st.sidebar.image(LOGO_PATH, width=120)
 
-st.sidebar.markdown("**Created by:** `Mobinul`")
-st.sidebar.caption("Crypto Algorithmic & Institutional Researcher")
+st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
+st.sidebar.caption("Quantitative Algorithmic & On-Chain Researcher")
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **সিস্টেম নোট:** সমস্ত প্রাতিষ্ঠানিক ও টেকনিক্যাল ফিল্টার সরাসরি মূল টার্মিনাল ড্যাশবোর্ড থেকে নিয়ন্ত্রিত।")
+st.sidebar.info("💡 **System Note:** All institutional technical & leading indicators are managed from the main terminal console.")
 
-# হেডার সেকশন
+# ========================================================
+# Terminal Header
+# ========================================================
 col_head1, col_head2 = st.columns([1, 8])
 with col_head1:
     if has_custom_logo:
@@ -170,56 +174,58 @@ with col_head1:
         st.markdown("<h1 style='font-size: 3rem;'>⚡</h1>", unsafe_allow_html=True)
 
 with col_head2:
-    st.markdown("<div class='terminal-title'>বাইনান্স ফিউচার্স প্রাতিষ্ঠানিক টার্মিনাল</div>", unsafe_allow_html=True)
-    st.markdown("<div class='terminal-subtitle'><b>স্বত্বাধিকারী ও ডিজাইনার:</b> Developed by <code>Mobinul</code> | Powered by Binance Futures, CoinGlass & Arkham</div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-title'>BINANCE FUTURES INTELLIGENCE TERMINAL</div>", unsafe_allow_html=True)
+    st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Powered by Binance Futures, CoinGlass & Arkham</div>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# মেইন কন্ট্রোল প্যানেল (Glassmorphism কার্ড)
+# ========================================================
+# Main Controls Dashboard (Glassmorphic Grid)
+# ========================================================
 col_left, col_right = st.columns(2, gap="large")
 
 with col_left:
     st.markdown("""
         <div class='glass-panel'>
-            <h4 style='color: #38BDF8; margin-top: 0;'>📊 টেকনিক্যাল ও ট্রেন্ড ফিল্টার</h4>
+            <h4 style='color: #38BDF8; margin-top: 0;'>📊 Technical Trend Configuration</h4>
         </div>
     """, unsafe_allow_html=True)
     
     c1, c2 = st.columns(2)
     with c1:
-        sma_choice = st.selectbox("মুভিং এভারেজ (SMA)", [50, 200], index=0)
+        sma_choice = st.selectbox("Moving Average (SMA)", [50, 200], index=0)
     with c2:
-        timeframe = st.selectbox("টাইমফ্রেম", ["1d", "4h"], index=0)
+        timeframe = st.selectbox("Execution Timeframe", ["1d", "4h"], index=0)
     
-    max_dist = st.slider("SMA সাপোর্ট থেকে সর্বোচ্চ দূরত্ব (%)", min_value=1.0, max_value=25.0, value=10.0, step=0.5)
+    max_dist = st.slider("Max Distance from Support SMA (%)", min_value=1.0, max_value=25.0, value=10.0, step=0.5)
 
 with col_right:
     st.markdown("""
         <div class='glass-panel'>
-            <h4 style='color: #F59E0B; margin-top: 0;'>🔥 প্রাতিষ্ঠানিক লিডিং সিগন্যাল</h4>
+            <h4 style='color: #F59E0B; margin-top: 0;'>🔥 Institutional Leading Signals</h4>
         </div>
     """, unsafe_allow_html=True)
     
-    enable_compression = st.checkbox("৩-দিনের ভোলাটিলিটি কম্প্রেশন ফিল্টার", value=True)
+    enable_compression = st.checkbox("3-Day Volatility Squeeze Filter", value=True)
     if enable_compression:
-        max_compression_range = st.slider("সর্বোচ্চ ৩-দিনের রেঞ্জ (%)", 5.0, 30.0, 18.0, 1.0)
+        max_compression_range = st.slider("Max 3-Day Squeeze Range (%)", 5.0, 30.0, 18.0, 1.0)
     else:
         max_compression_range = 100.0
 
-    enable_volume_surge = st.checkbox("৪-ঘণ্টার ভলিউম সার্জ ফিল্টার", value=True)
+    enable_volume_surge = st.checkbox("4-Hour Volume Surge Filter", value=True)
     if enable_volume_surge:
-        min_vol_surge = st.slider("ন্যূনতম ভলিউম গুণক (x)", 1.0, 3.0, 1.2, 0.1)
+        min_vol_surge = st.slider("Min Relative Volume Multiplier (x)", 1.0, 3.0, 1.2, 0.1)
     else:
         min_vol_surge = 0.0
 
-    enable_oi_check = st.checkbox("২৪ ঘণ্টার ওপেন ইন্টারেস্ট (OI) গ্রোথ ট্র্যাকার", value=True)
+    enable_oi_check = st.checkbox("Track 24h Open Interest (OI) Growth", value=True)
 
-# স্ক্যান ট্রিগার বাটন
+# Scan Execution Button
 st.markdown("<br>", unsafe_allow_html=True)
-scan_triggered = st.button("🚀 স্ক্যান শুরু করুন (Run Full Market Scan)", use_container_width=True)
+scan_triggered = st.button("🚀 EXECUTE FULL MARKET SCAN", use_container_width=True)
 
 # ========================================================
-# ডেটা ফেচিং ও অপ্টিমাইজড স্ক্যান অ্যালগরিদম
+# Backend Market Data Fetchers
 # ========================================================
 @st.cache_data(ttl=1800)
 def get_all_futures_symbols():
@@ -334,7 +340,7 @@ def get_klines_data(symbol, interval, limit):
     return None
 
 def check_institutional_setup(symbol, sma_period, interval, max_distance):
-    """টেলিগ্রাম স্ক্যানারের মতোই নিখুঁত ও বাস্তবসম্মত প্রাতিষ্ঠানিক ফিল্টার"""
+    """Institutional breakout setup check"""
     df = get_klines_data(symbol, interval=interval, limit=sma_period + 30)
     if df is None:
         return None
@@ -343,16 +349,15 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
     current_close = df['close'].iloc[-1]
     current_sma = df['sma'].iloc[-1]
     
-    # ১. বুলিশ ট্রেন্ড সাপোর্ট চেক (ক্লোজ প্রাইস SMA-র ওপরে থাকতে হবে)
+    # 1. Bullish structural filter (Close must hold above SMA)
     if pd.isna(current_sma) or current_close < current_sma:
         return None
         
     dist_pct = ((current_close - current_sma) / current_sma) * 100
-    # অতিরিক্ত ওভার-এক্সটেন্ডেড কয়েন বাদ দেওয়া
     if dist_pct > max_distance:
         return None
 
-    # ২. ৩-দিনের কম্প্রেশন ফিল্টার
+    # 2. 3-Day Volatility Contraction Filter
     df_1d = df if interval == "1d" else get_klines_data(symbol, interval="1d", limit=10)
     range_3d = 0.0
     if df_1d is not None and len(df_1d) >= 3:
@@ -362,7 +367,7 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
         if enable_compression and range_3d > max_compression_range:
             return None
 
-    # ৩. ৪-ঘণ্টার ভলিউম সার্জ ফিল্টার
+    # 3. 4-Hour Volume Surge Filter
     df_4h = df if interval == "4h" else get_klines_data(symbol, interval="4h", limit=25)
     vol_surge_ratio = 1.0
     if df_4h is not None and len(df_4h) >= 20:
@@ -377,7 +382,7 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
             if not (is_green and vol_surge_ratio >= min_vol_surge):
                 return None
 
-    # ৪. ওপেন ইন্টারেস্ট গ্রোথ
+    # 4. Open Interest Growth Tracker
     oi_pct = get_oi_growth(symbol) if enable_oi_check else 0.0
 
     clean_name = symbol.replace("USDT", "")
@@ -397,18 +402,18 @@ def check_institutional_setup(symbol, sma_period, interval, max_distance):
     }
 
 # ========================================================
-# স্ক্যান এক্সিকিউশন
+# Execution & Result Output
 # ========================================================
 if scan_triggered:
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
-    with st.spinner("বাইনান্স এবং প্রাতিষ্ঠানিক ম্যাট্রিক্স সিঙ্ক হচ্ছে..."):
+    with st.spinner("Synchronizing Binance Futures & Institutional Feeds..."):
         symbols = get_all_futures_symbols()
         market_cache = get_global_market_assets()
         
     if not symbols:
-        st.error("⚠️ পেয়ার লিস্ট লোড করা সম্ভব হয়নি।")
+        st.error("⚠️ Failed to load active pairs from Binance API.")
     else:
-        st.info(f"বাইনান্স থেকে {len(symbols)}টি সক্রিয় পেয়ার লোড হয়েছে। স্ক্যান চলছে...")
+        st.info(f"Loaded {len(symbols)} active pairs. Initiating institutional scanning engine...")
         
         progress = st.progress(0)
         status_label = st.empty()
@@ -417,7 +422,7 @@ if scan_triggered:
         for idx, sym in enumerate(symbols):
             progress.progress((idx + 1) / len(symbols))
             clean_sym = sym.replace("USDT", "")
-            status_label.text(f"স্ক্যান হচ্ছে [{idx+1}/{len(symbols)}]: {clean_sym}")
+            status_label.text(f"Analyzing [{idx+1}/{len(symbols)}]: {clean_sym}")
             
             match = check_institutional_setup(sym, sma_choice, timeframe, max_dist)
             if match:
@@ -435,7 +440,7 @@ if scan_triggered:
         status_label.empty()
         
         if matched_data:
-            st.success(f"🎉 স্ক্যান সম্পন্ন! মোট {len(matched_data)}টি প্রাতিষ্ঠানিক সুযোগ পাওয়া গেছে।")
+            st.success(f"🎉 Scan Completed! Identified {len(matched_data)} high-probability institutional setups.")
             df_result = pd.DataFrame(matched_data)
             
             cols = [
@@ -459,13 +464,13 @@ if scan_triggered:
             
             csv_file = df_result.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📥 সম্পূর্ণ CSV রিপোর্ট ডাউনলোড",
+                label="📥 Download Full Institutional CSV Report",
                 data=csv_file,
-                file_name=f"mobin_crypto_institutional_{sma_choice}sma_report.csv",
+                file_name=f"mobin_institutional_{sma_choice}sma_report.csv",
                 mime="text/csv"
             )
         else:
-            st.warning("বর্তমান ফিল্টারে কোনো কয়েন মেলেনি। প্যানেল থেকে ফিল্টারের মান সামান্য পরিবর্তন করে আবার চেষ্টা করুন।")
+            st.warning("No pairs met the current institutional filters. Consider slightly adjusting the SMA distance or volume multiplier above.")
 
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
 st.markdown(
