@@ -1,5 +1,5 @@
 import streamlit as st
-import requests
+import ccxt
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -11,30 +11,48 @@ st.title("📊 4-Day Institutional Signal Performance & Visualizer")
 st.markdown("গত ৪ দিনে এপিআইয়ের তৈরি করা সিগন্যালগুলোর সিমুলেশন এবং লাইভ রেজাল্ট যাচাইকরণ।")
 
 @st.cache_data(ttl=300)
-def get_historical_klines(symbol, interval="4h", limit=120):
-    """ফিউচার্স এবং স্পট উভয় এপিআই থেকে ডেটা ফেচ করার নিরাপদ ফাংশন"""
-    endpoints = [
-        f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}",
-        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    ]
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-
-    for url in endpoints:
+def get_historical_klines(symbol, timeframe="4h", limit=120):
+    """
+    CCXT লাইব্রেরি ব্যবহার করে ডেটা ফেচিং (Streamlit Cloud এর US IP জিও-ব্লক বাইপাস করে)
+    """
+    # 1. CCXT Binance Futures / Spot
+    try:
+        exchange = ccxt.binance({
+            'enableRateLimit': True,
+            'options': {'defaultType': 'future'}
+        })
+        # সিম্বল স্ট্যান্ডার্ড ফরম্যাটে রূপান্তর (যেমন TRXUSDT -> TRX/USDT:USDT বা TRX/USDT)
+        base_sym = symbol.replace("USDT", "")
+        formatted_sym = f"{base_sym}/USDT:USDT"
+        
         try:
-            res = requests.get(url, headers=headers, timeout=8).json()
-            if isinstance(res, list) and len(res) >= 30:
-                df = pd.DataFrame(res, columns=[
-                    "open_time", "open", "high", "low", "close", "volume",
-                    "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
-                ])
-                for col in ["open", "high", "low", "close", "volume"]:
-                    df[col] = df[col].astype(float)
-                df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
-                return df
+            ohlcv = exchange.fetch_ohlcv(formatted_sym, timeframe=timeframe, limit=limit)
         except Exception:
-            continue
+            # স্পট ফরম্যাটে ট্রাই
+            ohlcv = exchange.fetch_ohlcv(f"{base_sym}/USDT", timeframe=timeframe, limit=limit)
+
+        if ohlcv and len(ohlcv) >= 30:
+            df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
+            df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
+            for col in ["open", "high", "low", "close", "volume"]:
+                df[col] = df[col].astype(float)
+            return df
+    except Exception:
+        pass
+
+    # 2. অল্টারনেটিভ ফলব্যাক: KuCoin / GateIO সরাসরি বাইপাস (যদি বাইনান্স কোনো কারণে ব্লক ধরে)
+    try:
+        kucoin = ccxt.kucoinfutures({'enableRateLimit': True})
+        ohlcv = kucoin.fetch_ohlcv(f"{symbol.replace('USDT', '')}USDTM", timeframe=timeframe, limit=limit)
+        if ohlcv and len(ohlcv) >= 30:
+            df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
+            df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
+            for col in ["open", "high", "low", "close", "volume"]:
+                df[col] = df[col].astype(float)
+            return df
+    except Exception:
+        pass
+
     return None
 
 def simulate_strategy(df):
@@ -111,7 +129,7 @@ target_symbol = st.sidebar.text_input("কয়েনের প্রতীক 
 
 if target_symbol:
     with st.spinner(f"{target_symbol} এর ডেটা ফেচ ও সিমুলেট করা হচ্ছে..."):
-        df = get_historical_klines(target_symbol, interval="4h", limit=120)
+        df = get_historical_klines(target_symbol, timeframe="4h", limit=120)
         
     if df is not None:
         signals = simulate_strategy(df)
@@ -171,8 +189,4 @@ if target_symbol:
                 title=f"{target_symbol} 4H Structure & Verified Trades",
                 yaxis_title="Price (USDT)"
             )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("ℹ️ এই কয়েনটিতে গত ৪ দিনে ৫০/২০০ SMA রিটেস্ট ফিল্টার অনুযায়ী কোনো ভ্যালিড সিগন্যাল তৈরি হয়নি।")
-    else:
-        st.error("ডেটা লোড করা যায়নি। বাইনান্স এপিআই রেসপন্স দিচ্ছে না অথবা প্রতীক ভুল।")
+            st.plotly_chart(fig, use_container_width
