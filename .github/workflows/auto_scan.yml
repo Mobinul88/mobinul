@@ -1,4 +1,4 @@
-name: 4-Hour Auto Swing Alert Engine
+name: Day Auto Swing Alert Engine
 
 on:
   schedule:
