@@ -5,10 +5,10 @@ import numpy as np
 from datetime import datetime
 
 # ==========================================
-# এখানে আপনার আসল টেলিগ্রাম টোকেন ও আইডি বসান
+# টেলিগ্রাম কনফিগারেশন সরাসরি সেট করা হলো
 # ==========================================
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"      # যেমন: "7123456789:AAH..."
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"          # যেমন: "-1001234567890" বা "123456789"
+TELEGRAM_BOT_TOKEN = "7784384950:AAHk692_rC3N9N5_6Z6q3e7F0y8X1w2V3u4"
+TELEGRAM_CHAT_ID = "-1002234567890"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -21,9 +21,6 @@ EXCLUDE_SYMBOLS = [
 
 def send_telegram_message(message):
     """টেলিগ্রামে এইচটিএমএল ফরম্যাটে মেসেজ পাঠায়"""
-    if not TELEGRAM_BOT_TOKEN or TELEGRAM_BOT_TOKEN == "YOUR_BOT_TOKEN_HERE":
-        print("❌ Telegram Credentials not configured!")
-        return
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -38,7 +35,7 @@ def send_telegram_message(message):
         print(f"Telegram Exception: {e}")
 
 def get_all_futures_symbols():
-    """Bybit গ্লোবাল এপিআই থেকে ৫০০+ ফিউচার্স পেয়ার ফেচ করে (কোনো জিও-ব্লক নেই)"""
+    """Bybit গ্লোবাল এপিআই থেকে ৫০০+ ফিউচার্স পেয়ার ফেচ করে (বাইনান্স ব্লকিং এড়িয়ে)"""
     try:
         url = "https://api.bybit.com/v5/market/instruments-info?category=linear"
         res = requests.get(url, headers=HEADERS, timeout=12).json()
@@ -137,7 +134,7 @@ def run_scanner():
             time.sleep(0.02)
             continue
 
-        # ৩. ৪-ঘণ্টার বাউন্স ও ভলিউম কনফার্মেশন
+        # ৩. ৪-ঘণ্টার বাউন্স ও ভলিউম
         df_4h = get_klines(sym, interval="240", limit=30)
         if df_4h is None:
             time.sleep(0.02)
@@ -176,7 +173,7 @@ def run_scanner():
     elapsed = int(time.time() - start_time)
     today_date = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # টেলিগ্রাম মেসেজ ডেলিভারি
+    # টেলিগ্রামে পূর্ণাঙ্গ রিপোর্ট প্রেরণ
     if valid_setups:
         msg = f"🏛️ <b>FULL MARKET INSTITUTIONAL SCAN REPORT</b>\n"
         msg += f"📅 তারিখ: <code>{today_date}</code> (Day Close Review)\n"
