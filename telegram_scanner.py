@@ -81,7 +81,7 @@ def get_binance_klines_fast(symbol, interval="1d", limit=60):
     return None
 
 def get_oi_growth(symbol):
-    """বাইনান্স ফিউচার্স ওপেন ইন্টারেস্ট (OI) গ্রোথ - সম্পূর্ণ নিরাপদ ও নন-ক্র্যাশ মেথড"""
+    """বাইনান্স ফিউচার্স ওপেন ইন্টারেস্ট (OI) গ্রোথ - নিরাপদ মেথড"""
     url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol}&period=4h&limit=7"
     try:
         req = session.get(url, timeout=2.0)
@@ -125,4 +125,91 @@ def run_scanner():
 
         daily_bullish = False
         ma_label = ""
-        if not pd.isna(d_50) and
+        if (not pd.isna(d_50)) and (d_close >= d_50):
+            daily_bullish = True
+            ma_label = "Daily SMA 50"
+        elif (not pd.isna(d_200)) and (d_close >= d_200):
+            daily_bullish = True
+            ma_label = "Daily SMA 200"
+
+        if not daily_bullish:
+            continue
+
+        # ২. ৩-দিনের কম্প্রেশন চেক (<18%)
+        range_3d = (df_1d["high"].tail(3).max() - df_1d["low"].tail(3).min()) / d_close * 100
+        if range_3d > 18.0:
+            continue
+
+        # ৩. ৪-ঘণ্টার ক্যান্ডেল এবং ভলিউম সার্জ রেশিও (Volume Surge)
+        df_4h = get_binance_klines_fast(sym, interval="4h", limit=30)
+        if df_4h is None:
+            continue
+
+        df_4h["vol_sma"] = df_4h["volume"].rolling(20, min_periods=5).mean()
+        last_4h = df_4h.iloc[-1]
+        
+        avg_vol = last_4h["vol_sma"]
+        current_vol = last_4h["volume"]
+        vol_surge_ratio = (current_vol / avg_vol) if avg_vol > 0 else 1.0
+
+        is_green = last_4h["close"] >= last_4h["open"]
+        has_volume_surge = is_green and (vol_surge_ratio >= 1.3)
+
+        if not has_volume_surge:
+            continue
+
+        # ৪. ওপেন ইন্টারেস্ট গ্রোথ চেক
+        oi_growth_pct = get_oi_growth(sym)
+
+        entry_p = d_close
+        sl_p = entry_p * 0.95
+        tp1_p = entry_p * 1.05
+        tp2_p = entry_p * 1.10
+
+        valid_setups.append({
+            "symbol": sym,
+            "price": entry_p,
+            "ma_type": ma_label,
+            "range_3d": range_3d,
+            "vol_surge": vol_surge_ratio,
+            "oi_growth": oi_growth_pct,
+            "sl": sl_p,
+            "tp1": tp1_p,
+            "tp2": tp2_p
+        })
+
+    elapsed = int(time.time() - start_time)
+    today_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # টেলিগ্রামে রিপোর্ট পাঠানো
+    if valid_setups:
+        msg = f"🔥 <b>INSTITUTIONAL LEADING BREAKOUT ALERT</b>\n"
+        msg += f"📅 তারিখ: <code>{today_date}</code> (High Probability Entry)\n"
+        msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
+        msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n"
+        msg += f"🎯 কোয়ালিফাই করেছে: <b>{len(valid_setups)} টি</b>\n\n"
+
+        for coin in valid_setups:
+            msg += f"💎 <b>#{coin['symbol']}</b>\n"
+            msg += f"• সাপোর্ট স্ট্রাকচার: <code>{coin['ma_type']}</code>\n"
+            msg += f"• এন্ট্রি রেট: <code>{coin['price']:.4f}</code>\n"
+            msg += f"• ৩-দিনের রেঞ্জ: <code>{coin['range_3d']:.2f}% (Compressed)</code>\n"
+            msg += f"• 🚀 <b>ভলিউম স্পাইক:</b> <code>{coin['vol_surge']:.2f}x (Surge)</code>\n"
+            if coin['oi_growth'] != 0.0:
+                msg += f"• 📈 <b>OI গ্রোথ (24h):</b> <code>{coin['oi_growth']:+.2f}%</code>\n"
+            msg += f"🛑 স্টপ-লস: <code>{coin['sl']:.4f} (-5.0%)</code>\n"
+            msg += f"🎯 TP 1: <code>{coin['tp1']:.4f} (+5.0%)</code>\n"
+            msg += f"🚀 TP 2: <code>{coin['tp2']:.4f} (+10.0%)</code>\n"
+            msg += "----------------------------\n"
+        send_telegram_message(msg)
+    else:
+        msg = f"🏛️ <b>BINANCE INSTITUTIONAL SCAN REPORT</b>\n"
+        msg += f"📅 তারিখ: <code>{today_date}</code> (Day Close Review)\n"
+        msg += f"🔍 মোট স্ক্যান করা বাইনান্স পেয়ার: <b>{total_pairs} টি</b>\n"
+        msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n\n"
+        msg += "🛡️ <b>ফলাফল: কোনো কয়েনে লিডিং স্পাইক মেলেনি।</b>\n"
+        msg += "💡 <i>কোনো কয়েনে একসাথে নিরাপদ SMA সাপোর্ট, কম্প্রেশন এবং ভলিউম স্পাইক (≥1.3x) কনফার্মেশন পাওয়া যায়নি। ক্যাপিটাল সুরক্ষিত রাখুন।</i>"
+        send_telegram_message(msg)
+
+if __name__ == "__main__":
+    run_scanner()
