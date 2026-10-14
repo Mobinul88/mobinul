@@ -2,8 +2,9 @@ name: 4-Hour Auto Swing Alert Engine
 
 on:
   schedule:
-    - cron: '0 */4 * * *'  # প্রতি ৪ ঘণ্টা পর পর রান হবে
-  workflow_dispatch:        # যেকোনো সময় ম্যানুয়ালি রান করার জন্য বাটন
+    # 00:15 UTC = ভোর 05:45 AM IST (Daily Candle Close এর ঠিক পর)
+    - cron: '15 0 * * *'
+  workflow_dispatch:
 
 jobs:
   run-scanner:
@@ -15,12 +16,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install Dependencies
         run: |
-          pip install requests pandas
+          pip install requests pandas numpy ccxt
 
       - name: Run Telegram Scanner
-        run: |
-          python telegram_scanner.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python telegram_scanner.py
