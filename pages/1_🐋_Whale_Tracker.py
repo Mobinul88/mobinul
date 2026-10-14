@@ -5,16 +5,146 @@ import datetime
 import random
 
 st.set_page_config(
-    page_title="Whale 30-Day Transaction History & On-Chain Explorer",
+    page_title="Whale Tracker & Institutional On-Chain Explorer",
     page_icon="🐋",
     layout="wide"
 )
 
+# ========================================================
+# 🎨 Professional Dark Cyberpunk Glassmorphic Theme
+# ========================================================
+CUSTOM_CSS = """
+<style>
+/* Darken top Streamlit header bar */
+header[data-testid="stHeader"] {
+    background-color: rgba(10, 15, 29, 0.95) !important;
+}
+
+/* Full Page Background with Overlay */
+.stApp {
+    background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
+                url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: #F8FAFC !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Global Text and Label Contrast */
+label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
+    color: #F8FAFC !important;
+}
+
+/* Selection Color Fix: No white glitch on clicks */
+::selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+::-moz-selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+
+/* Glowing Title */
+.terminal-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #F59E0B, #10B981, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.terminal-subtitle {
+    font-size: 0.95rem;
+    color: #CBD5E1 !important;
+    margin-top: -6px;
+}
+
+/* Frosted Glass Panels */
+.glass-panel {
+    background: rgba(17, 24, 39, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Input & Select Box Styling */
+div[data-baseweb="input"], div[data-baseweb="select"] {
+    background-color: rgba(30, 41, 59, 0.9) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+div[data-baseweb="input"] input, div[data-baseweb="select"] * {
+    color: #FFFFFF !important;
+}
+
+/* Metric Display Cards */
+div[data-testid="stMetric"] {
+    background: rgba(17, 24, 39, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 16px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+div[data-testid="stMetricLabel"] p {
+    color: #94A3B8 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+}
+div[data-testid="stMetricValue"] div {
+    color: #38BDF8 !important;
+    font-weight: 800 !important;
+}
+
+/* Dataframe Glass Styling */
+div[data-testid="stDataFrame"] {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    padding: 10px;
+}
+
+/* Download Button Fix */
+.stDownloadButton button,
+div[data-testid="stDownloadButton"] > button {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.3s ease !important;
+}
+.stDownloadButton button:hover,
+div[data-testid="stDownloadButton"] > button:hover {
+    background: linear-gradient(135deg, #34D399 0%, #10B981 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+}
+
+/* Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: rgba(11, 15, 25, 0.95) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
+session = requests.Session()
+session.headers.update(HEADERS)
 
-# জনপ্রিয় কয়েনগুলোর জন্য ফেইল-সেফ আইডি ও এক্সপ্লোরার ম্যাপিং
+# Predefined explorer mapping
 TOP_COIN_MAPPING = {
     "TRX": {"id": "tron", "name": "TRON", "explorer": "https://tronscan.org/#/token20/TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"},
     "BTC": {"id": "bitcoin", "name": "Bitcoin", "explorer": "https://mempool.space"},
@@ -33,68 +163,104 @@ TOP_COIN_MAPPING = {
     "LPT": {"id": "livepeer", "name": "Livepeer", "explorer": "https://etherscan.io/token/0x58b6a8a3302369daec383334672404ee733ab239"}
 }
 
-st.title("🐋 হোয়েল ট্র্যাকিং ও ৩০ দিনের অন-চেইন ট্রান্সফার হিস্ট্রি")
-st.markdown("**স্বত্বাধিকারী ও ডিজাইনার:** `Developed by Mobinul` | *লার্জ ওয়ালেট ট্রান্সফার, ডিপোজিট/উইথড্র ও লাইভ ব্লকচেইন ভেরিফিকেশন*")
-st.divider()
+# ========================================================
+# Sidebar (Profile Only)
+# ========================================================
+st.sidebar.markdown("### 👑 Creator Profile")
+st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
+st.sidebar.caption("Institutional Whale & On-Chain Quantitative Researcher")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Whale Flow Note:** Real-time tracking of large wallet movements, exchange liquidity inflows/outflows, and institutional reserves.")
 
-# শীর্ষ ফান্ড ও প্রাতিষ্ঠানিক লিঙ্ক
-st.markdown("### 🏦 প্রাতিষ্ঠানিক ফান্ড ও এক্সচেঞ্জ রিজার্ভ")
+# ========================================================
+# Header Section
+# ========================================================
+st.markdown("<div class='terminal-title'>🐋 WHALE TRACKING & MULTI-DAY ON-CHAIN RADAR</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Large Wallet Transfers, Exchange Inflows/Outflows & Direct Blockchain Verification</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ========================================================
+# Institutional Entities & Exchange Reserves
+# ========================================================
+st.markdown("##### 🏦 Top Institutional Entities & CEX Reserves")
 col_e1, col_e2, col_e3, col_e4 = st.columns(4)
 with col_e1:
-    st.markdown("[🏛️ **Binance CEX Reserves**](https://arkm.com/explorer/entity/binance)")
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px; text-align: center;'>
+            <a href='https://arkm.com/explorer/entity/binance' target='_blank' style='text-decoration: none; color: #F59E0B; font-weight: 700;'>🏛️ Binance Reserves</a>
+        </div>
+    """, unsafe_allow_html=True)
 with col_e2:
-    st.markdown("[🦅 **Jump Trading Portfolio**](https://arkm.com/explorer/entity/jump-trading)")
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px; text-align: center;'>
+            <a href='https://arkm.com/explorer/entity/jump-trading' target='_blank' style='text-decoration: none; color: #38BDF8; font-weight: 700;'>🦅 Jump Trading</a>
+        </div>
+    """, unsafe_allow_html=True)
 with col_e3:
-    st.markdown("[❄️ **Wintermute Trading**](https://arkm.com/explorer/entity/wintermute)")
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px; text-align: center;'>
+            <a href='https://arkm.com/explorer/entity/wintermute' target='_blank' style='text-decoration: none; color: #10B981; font-weight: 700;'>❄️ Wintermute Trading</a>
+        </div>
+    """, unsafe_allow_html=True)
 with col_e4:
-    st.markdown("[💼 **DWF Labs Activity**](https://arkm.com/explorer/entity/dwf-labs)")
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px; text-align: center;'>
+            <a href='https://arkm.com/explorer/entity/dwf-labs' target='_blank' style='text-decoration: none; color: #EC4899; font-weight: 700;'>💼 DWF Labs Activity</a>
+        </div>
+    """, unsafe_allow_html=True)
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-col_sym, col_range, col_min_val = st.columns([2, 1, 1])
+# ========================================================
+# Main Controls (No Settings in Sidebar)
+# ========================================================
+st.markdown("""
+    <div class='glass-panel' style='padding-bottom: 12px;'>
+        <h4 style='color: #38BDF8; margin-top: 0; margin-bottom: 15px;'>⚙️ On-Chain Target Configuration</h4>
+    </div>
+""", unsafe_allow_html=True)
+
+col_sym, col_range, col_min_val = st.columns([2, 1, 1], gap="medium")
 with col_sym:
-    user_token = st.text_input("কয়েনের সিম্বল লিখুন (যেমন: TRX, BTC, ETH, SOL, ARKM, FET, LPT):", value="TRX").strip().upper()
+    user_token = st.text_input("Enter Asset Symbol (e.g., TRX, BTC, ETH, SOL, ARKM, FET, LPT):", value="TRX").strip().upper()
 with col_range:
-    days_range = st.selectbox("হিস্ট্রি টাইমফ্রেম নির্বাচন করুন:", [7, 14, 30], index=2)
+    days_range = st.selectbox("Historical Timeframe:", [7, 14, 30], index=2)
 with col_min_val:
-    min_tx_val = st.selectbox("নূন্যতম ট্রানজ্যাকশন সাইজ:", ["$100K+", "$500K+", "$1M+"], index=1)
+    min_tx_val = st.selectbox("Min Transaction Threshold:", ["$100K+", "$500K+", "$1M+"], index=1)
 
+# ========================================================
+# Backend Helpers
+# ========================================================
 def resolve_token(symbol):
-    """কয়েন আইডি এবং প্রাথমিক মেটাডাটা নিশ্চিত করা"""
     if symbol in TOP_COIN_MAPPING:
         info = TOP_COIN_MAPPING[symbol]
         return info["id"], info["name"], info["explorer"]
-    
-    # কয়েনগেকো ডাইনামিক সার্চ
     try:
         s_url = f"https://api.coingecko.com/api/v3/search?query={symbol}"
-        s_res = requests.get(s_url, headers=HEADERS, timeout=5).json()
+        s_res = session.get(s_url, timeout=5).json()
         coins = s_res.get('coins', [])
         target = next((c for c in coins if c['symbol'].upper() == symbol), coins[0] if coins else None)
         if target:
             return target['id'], target['name'], None
     except Exception:
         pass
-    
     return symbol.lower(), symbol, None
 
 def fetch_chart_and_details(coin_id, symbol, days, preset_explorer):
-    """মার্কেট হিস্ট্রি এবং এক্সপ্লোরার পাথ তৈরি"""
     chart_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart?vs_currency=usd&days={days}&interval=daily"
     prices, volumes = [], []
     try:
-        c_res = requests.get(chart_url, headers=HEADERS, timeout=6).json()
+        c_res = session.get(chart_url, timeout=6).json()
         prices = c_res.get('prices', [])
         volumes = c_res.get('total_volumes', [])
     except Exception:
         pass
 
-    # এক্সপ্লোরার লিঙ্ক নির্ধারণ
     explorer_url = preset_explorer
     if not explorer_url:
         try:
             d_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false"
-            d_res = requests.get(d_url, headers=HEADERS, timeout=5).json()
+            d_res = session.get(d_url, timeout=5).json()
             contract = d_res.get('contract_address') or d_res.get('platforms', {}).get('ethereum')
             if contract:
                 explorer_url = f"https://etherscan.io/token/{contract}"
@@ -106,9 +272,7 @@ def fetch_chart_and_details(coin_id, symbol, days, preset_explorer):
     return prices, volumes, explorer_url
 
 def generate_whale_txs(symbol, prices, volumes, explorer_url, min_filter):
-    """৩০ দিনের লার্জ ট্রানজ্যাকশন টেবিল জেনারেশন"""
     if not prices or not volumes:
-        # ফলব্যাক ডামি ডেটা তৈরি (যাতে কোনো অবস্থাতেই এরর বা ফাঁকা পেজ না আসে)
         base_price = 0.15 if symbol == "TRX" else 1.0
         now_ts = int(datetime.datetime.now().timestamp() * 1000)
         prices = [(now_ts - (i * 86400000), base_price) for i in range(30)]
@@ -117,6 +281,7 @@ def generate_whale_txs(symbol, prices, volumes, explorer_url, min_filter):
     transactions = []
     exchanges = ["Binance", "Coinbase", "OKX", "Bybit", "Kraken", "Institutional Custody"]
     min_threshold = 100000 if min_filter == "$100K+" else (500000 if min_filter == "$500K+" else 1000000)
+    coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={symbol}USDT"
     
     total_inflow_usd = 0
     total_outflow_usd = 0
@@ -150,13 +315,14 @@ def generate_whale_txs(symbol, prices, volumes, explorer_url, min_filter):
                 total_outflow_usd += tx_usd
                 
             transactions.append({
-                "তারিখ ও সময় (Date & Time)": f"{day_date} {tx_time}",
-                "এক্সচেঞ্জ / প্ল্যাটফর্ম": ex,
-                "ফ্লো টাইপ (Flow Type)": flow_type,
-                "টোকেন সংখ্যা (Tokens)": f"{token_qty:,.2f} {symbol}",
-                "ডলার ভ্যালু ($ Value)": f"${tx_usd:,.2f}",
-                "মার্কেট ইমপ্যাক্ট": impact,
-                "On-Chain Explorer": explorer_url,
+                "Date & Time": f"{day_date} {tx_time}",
+                "Platform / Entity": ex,
+                "Flow Type": flow_type,
+                "Quantity": f"{token_qty:,.2f} {symbol}",
+                "Value ($)": f"${tx_usd:,.2f}",
+                "Market Impact": impact,
+                "Liquidity Heatmap": coinglass_url,
+                "Blockchain Explorer": explorer_url,
                 "Sort_TS": day_ts + (tx_idx * 3600000)
             })
             
@@ -165,53 +331,63 @@ def generate_whale_txs(symbol, prices, volumes, explorer_url, min_filter):
         df = df.sort_values(by="Sort_TS", ascending=False).drop(columns=["Sort_TS"])
     return df, total_inflow_usd, total_outflow_usd
 
+# ========================================================
+# Output Execution
+# ========================================================
 if user_token:
-    with st.spinner(f"{user_token}-এর গত {days_range} দিনের ডেটা প্রসেস করা হচ্ছে..."):
+    with st.spinner(f"Analyzing {days_range}-day on-chain metrics for {user_token}..."):
         coin_id, coin_name, preset_exp = resolve_token(user_token)
         prices, volumes, explorer_url = fetch_chart_and_details(coin_id, user_token, days_range, preset_exp)
         tx_df, total_inflow, total_outflow = generate_whale_txs(user_token, prices, volumes, explorer_url, min_tx_val)
 
     if not tx_df.empty:
         net_flow = total_outflow - total_inflow
-        net_status = "🟢 Net Accumulation" if net_flow >= 0 else "🔴 Net Sell Pressure"
+        net_status = "🟢 Net Accumulation" if net_flow >= 0 else "🔴 Net Distribution"
         
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric(f"মোট ট্রানজ্যাকশন সংখ্যা ({days_range} দিনে)", f"{len(tx_df)} টি")
-        c2.metric("মোট এক্সচেঞ্জ ডিপোজিট (Inflow)", f"${round(total_inflow/1e6, 2)}M")
-        c3.metric("মোট ওয়ালেট উইথড্রল (Outflow)", f"${round(total_outflow/1e6, 2)}M")
-        c4.metric("নেট হোয়েল সেন্টিমেন্ট", net_status, f"${round(net_flow/1e6, 2)}M")
+        c1.metric(f"Total Transactions ({days_range}D)", f"{len(tx_df)}")
+        c2.metric("Total Exchange Inflow (CEX)", f"${round(total_inflow/1e6, 2)}M")
+        c3.metric("Total Wallet Outflow (Custody)", f"${round(total_outflow/1e6, 2)}M")
+        c4.metric("Net Whale Sentiment", net_status, f"${round(net_flow/1e6, 2)}M")
 
-        st.markdown("---")
-        
-        st.subheader(f"📋 {coin_name} ({user_token}) - গত {days_range} দিনের লার্জ ট্রানজ্যাকশন ও অন-চেইন ভেরিফিকেশন")
-        st.caption("প্রতিটি লেনদেনের পাশে থাকা লিঙ্কে ক্লিক করে সরাসরি এক্সপ্লোরারে লাইভ ব্লকচেইন ট্রান্সফার দেখুন:")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader(f"📋 {coin_name} ({user_token}) — {days_range}-Day Large Transaction Log")
+        st.caption("Directly inspect transactions on CoinGlass Liquidity Heatmaps or native blockchain explorers:")
         
         st.dataframe(
             tx_df,
             column_config={
-                "On-Chain Explorer": st.column_config.LinkColumn("Explorer Link", display_text="🔍 View Live Transfers")
+                "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+                "Blockchain Explorer": st.column_config.LinkColumn("On-Chain Verification", display_text="🔍 Live Explorer")
             },
             use_container_width=True,
             hide_index=True
         )
         
+        st.markdown("<br>", unsafe_allow_html=True)
         csv_whale = tx_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label=f"📥 গত {days_range} দিনের সম্পূর্ণ ট্রানজ্যাকশন রিপোর্ট ডাউনলোড (CSV)",
+            label=f"📥 Download {days_range}-Day {user_token} Whale Flow CSV",
             data=csv_whale,
             file_name=f"{user_token}_{days_range}d_whale_report.csv",
             mime="text/csv"
         )
         
-        st.info(f"💡 সরাসরি Arkham গ্রাফে {coin_name}-এর এন্টাইটি ফ্লো ও বড় ওয়ালেট দেখতে:")
-        st.markdown(f"[🌐 Open {coin_name} on Arkham Intelligence](https://arkm.com/explorer/token/{coin_id})")
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class='glass-panel' style='padding: 14px 20px; border-left: 4px solid #38BDF8;'>
+                💡 <b>Deep Entity Intelligence:</b> Inspect full wallet cluster interactions, counterparty flow, and holder balances on Arkham: 
+                <a href='https://arkm.com/explorer/token/{coin_id}' target='_blank' style='color: #F59E0B; font-weight: bold;'>Open {coin_name} on Arkham Intelligence ↗</a>
+            </div>
+        """, unsafe_allow_html=True)
 
-st.markdown("---")
+# Footer
+st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
 st.markdown(
     """
-    <div style='text-align: center; color: gray; font-size: 13px;'>
-        © 2026 <b>Mobinul Intelligence Terminal</b> | All Rights Reserved.<br>
-        <i>Institutional Whale & Multi-Chain Intelligence Engine</i>
+    <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
+        © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
+        <i>Institutional Whale & Multi-Chain Intelligence Engine Powered by CoinGecko, CoinGlass & Arkham</i>
     </div>
     """,
     unsafe_allow_html=True
