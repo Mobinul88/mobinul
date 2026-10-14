@@ -3,22 +3,22 @@ import requests
 import pandas as pd
 
 st.set_page_config(
-    page_title="Social Sentiment & Hype Radar",
+    page_title="Social Sentiment & Multi-Timeframe Hype Radar",
     page_icon="🔥",
     layout="wide"
 )
 
 # ========================================================
-# 🎨 Professional Dark Cyberpunk Glassmorphic Theme
+# 🎨 Professional Dark Cyberpunk Theme (White Glitch 100% Fixed)
 # ========================================================
 CUSTOM_CSS = """
 <style>
-/* Darken top Streamlit header bar */
+/* Streamlit Header Bar */
 header[data-testid="stHeader"] {
     background-color: rgba(10, 15, 29, 0.95) !important;
 }
 
-/* Full Page Background with Overlay */
+/* Full Page Background */
 .stApp {
     background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
                 url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
@@ -29,16 +29,26 @@ header[data-testid="stHeader"] {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Global Text and Label Contrast */
+/* Global Text Colors */
 label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     color: #F8FAFC !important;
 }
 
-/* Glowing Title */
+/* Selection Color Fix: ক্লিক বা সিলেক্ট করলে যাতে কোনো কিছু সাদা না হয়ে যায় */
+::selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+::-moz-selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+
+/* Header Gradient */
 .terminal-title {
     font-size: 2.2rem;
     font-weight: 800;
-    background: linear-gradient(90deg, #F59E0B, #EF4444, #8B5CF6);
+    background: linear-gradient(90deg, #F59E0B, #10B981, #06B6D4);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     letter-spacing: -0.5px;
@@ -50,7 +60,7 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     margin-top: -6px;
 }
 
-/* Frosted Glass Control Panel */
+/* Glass Panels */
 .glass-panel {
     background: rgba(17, 24, 39, 0.75);
     backdrop-filter: blur(12px);
@@ -62,7 +72,25 @@ label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
 
-/* Dataframe Glass Styling */
+/* Multi-Timeframe Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: rgba(30, 41, 59, 0.7) !important;
+    border-radius: 10px 10px 0 0 !important;
+    color: #CBD5E1 !important;
+    font-weight: 600 !important;
+    padding: 10px 24px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.stTabs [aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%) !important;
+    color: #FBBF24 !important;
+    border-bottom: 2px solid #F59E0B !important;
+}
+
+/* Dataframe Container */
 div[data-testid="stDataFrame"] {
     background: rgba(15, 23, 42, 0.85) !important;
     border-radius: 14px !important;
@@ -70,52 +98,58 @@ div[data-testid="stDataFrame"] {
     padding: 10px;
 }
 
-/* Tab Active Styles */
-button[data-baseweb="tab"] {
-    font-size: 1.05rem !important;
-    font-weight: 700 !important;
-    color: #94A3B8 !important;
-    border-radius: 8px !important;
-    padding: 8px 16px !important;
-}
-button[data-baseweb="tab"][aria-selected="true"] {
-    color: #F59E0B !important;
-    border-bottom-color: #F59E0B !important;
-}
-
-/* Sidebar Custom Styling */
-section[data-testid="stSidebar"] {
-    background-color: rgba(11, 15, 25, 0.95) !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Download & Action Button */
-.stButton > button, .stDownloadButton > button {
+/* Action Button */
+.stButton > button {
     background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
     color: #000000 !important;
     font-weight: 700 !important;
     border-radius: 10px !important;
     border: none !important;
-    padding: 10px 20px !important;
-    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3) !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35) !important;
     transition: all 0.3s ease !important;
 }
-.stButton > button:hover, .stDownloadButton > button:hover {
+.stButton > button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5) !important;
+    box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5) !important;
+}
+
+/* 🎯 ডাউনলোড বাটন সাদা হয়ে লেখা অদৃশ্য হওয়া ফিক্স */
+.stDownloadButton button,
+div[data-testid="stDownloadButton"] > button {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.3s ease !important;
+}
+.stDownloadButton button:hover,
+div[data-testid="stDownloadButton"] > button:hover {
+    background: linear-gradient(135deg, #34D399 0%, #10B981 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: rgba(11, 15, 25, 0.95) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>
 """
 st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
 # ========================================================
-# Sidebar (Profile Only)
+# Sidebar
 # ========================================================
 st.sidebar.markdown("### 👑 Creator Profile")
 st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
-st.sidebar.caption("Quantitative Algorithmic & Social Sentiment Researcher")
+st.sidebar.caption("Social Sentiment & Viral Flow Researcher")
 st.sidebar.markdown("---")
-st.sidebar.info("💡 **Hype Engine:** Multi-timeframe social search metrics (24H, 7D, 30D) tracking retail mindshare and institutional capital.")
+st.sidebar.info("💡 **Hype Radar Note:** Tracks organic viral surges, Twitter/X narrative shifts, and multi-timeframe price discovery.")
 
 # ========================================================
 # Header Section
@@ -128,18 +162,30 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
 
-session = requests.Session()
-session.headers.update(HEADERS)
+# ========================================================
+# Main Page Control Bar
+# ========================================================
+col_ctrl1, col_ctrl2 = st.columns([4, 1])
+with col_ctrl1:
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px 20px; margin-bottom: 0;'>
+            <span style='color: #38BDF8; font-weight: 600;'>⚡ Sentiment Intelligence Engine:</span>
+            <span style='color: #CBD5E1;'> Analyzing real-time community engagement, social query velocity, and multi-day accumulation waves.</span>
+        </div>
+    """, unsafe_allow_html=True)
+with col_ctrl2:
+    refresh_radar = st.button("🔄 Sync Live Social Data", use_container_width=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ========================================================
-# Data Engine: 24h, 7d & 30d Multi-Timeframe Fetchers
+# Data Engines
 # ========================================================
 @st.cache_data(ttl=600)
 def get_24h_viral_trending():
-    """Fetch 24h real-time viral search coins from CoinGecko trending"""
     url = "https://api.coingecko.com/api/v3/search/trending"
     try:
-        res = session.get(url, timeout=6).json()
+        res = requests.get(url, headers=HEADERS, timeout=6).json()
         coins = res.get('coins', [])
         data = []
         for item in coins:
@@ -148,172 +194,148 @@ def get_24h_viral_trending():
             sym_clean = c.get('symbol', '').upper()
             coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={sym_clean}USDT"
             
-            p_change_24h = c_data.get('price_change_percentage_24h', {}).get('usd', 0)
-            
             data.append({
                 "Rank": c.get('score', 0) + 1,
                 "Symbol": sym_clean,
                 "Name": c.get('name', ''),
                 "Price ($)": round(float(c_data.get('price', 0)), 6) if c_data.get('price') else "N/A",
-                "24h Trend (%)": f"{round(float(p_change_24h or 0), 2):+}%",
+                "24h Change (%)": f"{round(float(c_data.get('price_change_percentage_24h', {}).get('usd', 0)), 2):+.2f}%",
                 "Market Cap Rank": f"#{c.get('market_cap_rank', 'N/A')}",
-                "Viral Intensity": "🔥 High 24h Social Hype",
-                "Heatmap Link": coinglass_url,
-                "Arkham Link": f"https://arkm.com/explorer/token/{c.get('id')}"
+                "Social Sentiment": "🔥 Viral Surge",
+                "Liquidity Heatmap": coinglass_url,
+                "On-Chain Intel": f"https://arkm.com/explorer/token/{c.get('id')}"
             })
         return pd.DataFrame(data)
     except Exception:
         return pd.DataFrame()
 
-@st.cache_data(ttl=900)
-def get_extended_momentum_data():
-    """Fetch 7d and 30d momentum data for top market cap & high-volume assets"""
-    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=150&page=1&sparkline=false&price_change_percentage=24h,7d,30d"
+@st.cache_data(ttl=1200)
+def get_multi_day_trending():
+    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=150&page=1&sparkline=false&price_change_percentage=7d,30d"
     try:
-        res = session.get(url, timeout=7).json()
+        res = requests.get(url, headers=HEADERS, timeout=8).json()
         if not isinstance(res, list):
             return pd.DataFrame(), pd.DataFrame()
             
         data_7d = []
         data_30d = []
-        
+
         for c in res:
             sym_clean = c.get('symbol', '').upper()
             coinglass_url = f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={sym_clean}USDT"
+            arkham_url = f"https://arkm.com/explorer/token/{c.get('id')}"
             
-            p_7d = c.get('price_change_percentage_7d_in_currency') or 0
-            p_30d = c.get('price_change_percentage_30d_in_currency') or 0
-            p_24h = c.get('price_change_percentage_24h_in_currency') or 0
-            
-            common_dict = {
-                "Rank": c.get('market_cap_rank', 'N/A'),
-                "Symbol": sym_clean,
-                "Name": c.get('name', ''),
-                "Price ($)": c.get('current_price', 0),
-                "24h Change (%)": f"{round(p_24h, 2):+}%",
-                "Heatmap Link": coinglass_url,
-                "Arkham Link": f"https://arkm.com/explorer/token/{c.get('id')}"
-            }
-            
-            # 7-Day row
-            row_7d = common_dict.copy()
-            row_7d["7-Day Gain (%)"] = round(p_7d, 2)
-            row_7d["7-Day Status"] = "⚡ Strong Weekly Surge" if p_7d >= 15 else ("🟢 Bullish Steady" if p_7d > 0 else "🔴 Consolidation")
-            data_7d.append(row_7d)
-            
-            # 30-Day row
-            row_30d = common_dict.copy()
-            row_30d["30-Day Gain (%)"] = round(p_30d, 2)
-            row_30d["Macro Narrative"] = "👑 Macro Narrative Leader" if p_30d >= 35 else ("🟢 Monthly Uptrend" if p_30d > 0 else "⚪ Sideways/Range")
-            data_30d.append(row_30d)
-            
-        df_7d = pd.DataFrame(data_7d).sort_values(by="7-Day Gain (%)", ascending=False).head(20)
-        df_30d = pd.DataFrame(data_30d).sort_values(by="30-Day Gain (%)", ascending=False).head(20)
-        
-        # Format percentages as strings with sign
-        df_7d["7-Day Gain (%)"] = df_7d["7-Day Gain (%)"].apply(lambda x: f"{x:+}%")
-        df_30d["30-Day Gain (%)"] = df_30d["30-Day Gain (%)"].apply(lambda x: f"{x:+}%")
-        
+            p_7d = c.get('price_change_percentage_7d_in_currency')
+            p_30d = c.get('price_change_percentage_30d_in_currency')
+            p_24h = c.get('price_change_percentage_24h', 0)
+            curr_p = c.get('current_price', 0)
+            mcap_rank = c.get('market_cap_rank', 'N/A')
+
+            if p_7d is not None:
+                data_7d.append({
+                    "Symbol": sym_clean,
+                    "Name": c.get('name', ''),
+                    "Price ($)": curr_p,
+                    "24h Change (%)": f"{round(float(p_24h or 0), 2):+.2f}%",
+                    "7d Momentum": float(p_7d),
+                    "7-Day Gain (%)": f"{round(float(p_7d), 2):+.2f}%",
+                    "Market Cap Rank": f"#{mcap_rank}",
+                    "Narrative Wave": "🚀 Strong Weekly Inflow" if p_7d >= 15 else ("🟢 Bullish Drift" if p_7d >= 5 else "⚪ Neutral"),
+                    "Liquidity Heatmap": coinglass_url,
+                    "On-Chain Intel": arkham_url
+                })
+
+            if p_30d is not None:
+                data_30d.append({
+                    "Symbol": sym_clean,
+                    "Name": c.get('name', ''),
+                    "Price ($)": curr_p,
+                    "24h Change (%)": f"{round(float(p_24h or 0), 2):+.2f}%",
+                    "30d Momentum": float(p_30d),
+                    "30-Day Gain (%)": f"{round(float(p_30d), 2):+.2f}%",
+                    "Market Cap Rank": f"#{mcap_rank}",
+                    "Macro Narrative": "👑 Macro Narrative Leader" if p_30d >= 30 else ("🟢 Sustained Growth" if p_30d >= 10 else "⚪ Consolidation"),
+                    "Liquidity Heatmap": coinglass_url,
+                    "On-Chain Intel": arkham_url
+                })
+
+        df_7d = pd.DataFrame(data_7d)
+        df_30d = pd.DataFrame(data_30d)
+
+        if not df_7d.empty:
+            df_7d = df_7d.sort_values(by="7dMomentum", ascending=False).head(20)
+            df_7d = df_7d.drop(columns=["7dMomentum"])
+            df_7d.insert(0, "Rank", range(1, len(df_7d) + 1))
+
+        if not df_30d.empty:
+            df_30d = df_30d.sort_values(by="30dMomentum", ascending=False).head(20)
+            df_30d = df_30d.drop(columns=["30dMomentum"])
+            df_30d.insert(0, "Rank", range(1, len(df_30d) + 1))
+
         return df_7d, df_30d
     except Exception:
         return pd.DataFrame(), pd.DataFrame()
 
 # ========================================================
-# Main Controls & Refresh Bar
-# ========================================================
-col_top1, col_top2 = st.columns([3, 1])
-with col_top1:
-    st.markdown("##### 📡 Cross-Horizon Sentiment & Social Mindshare Terminal")
-with col_top2:
-    if st.button("🔄 Sync Live Social Data", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-
-# Load Data
-with st.spinner("Aggregating multi-timeframe social sentiment feeds..."):
-    df_24h = get_24h_viral_trending()
-    df_7d, df_30d = get_extended_momentum_data()
-
-# ========================================================
-# Multi-Timeframe Tabs Interface (24H, 7D, 30D in One Place)
+# Interactive Tabs
 # ========================================================
 tab_24h, tab_7d, tab_30d = st.tabs([
     "⚡ 24 Hours (Immediate Viral Hype)", 
-    "🚀 7 Days (Sustained Momentum)", 
-    "🌕 30 Days (Macro Narrative Leaders)"
+    "📈 7 Days (Sustained Momentum)", 
+    "🟡 30 Days (Macro Narrative Leaders)"
 ])
 
-# ----------------- 24 Hours Tab -----------------
+with st.spinner("Synchronizing multi-timeframe social sentiment feeds..."):
+    df_24h = get_24h_viral_trending()
+    df_7d, df_30d = get_multi_day_trending()
+
+COL_CONFIGS = {
+    "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+    "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
+}
+
+# --- TAB 1: 24H ---
 with tab_24h:
-    st.markdown("#### ⚡ 24h Real-Time Viral Search & Twitter Spotlight")
-    st.caption("Tokens experiencing abnormal spikes in global searches, social impressions, and retail momentum over the last 24 hours.")
-    
+    st.markdown("#### ⚡ 24-Hour Viral & Immediate Search Velocity")
+    st.caption("Tokens currently experiencing the highest organic viral engagement, Twitter/X queries, and direct global searches.")
     if not df_24h.empty:
-        st.dataframe(
-            df_24h,
-            column_config={
-                "Heatmap Link": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                "Arkham Link": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        csv_24 = df_24h.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Export 24h Viral Report", data=csv_24, file_name="social_24h_viral_report.csv", mime="text/csv")
+        st.dataframe(df_24h, column_config=COL_CONFIGS, use_container_width=True, hide_index=True)
+        csv_24h = df_24h.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Download 24h Hype Report", data=csv_24h, file_name="24h_hype_report.csv", mime="text/csv")
     else:
-        st.warning("24h viral trending data is currently synchronizing. Please refresh shortly.")
+        st.warning("24h trending metrics temporarily unavailable. Please retry shortly.")
 
-# ----------------- 7 Days Tab -----------------
+# --- TAB 2: 7D ---
 with tab_7d:
-    st.markdown("#### 🚀 7-Day Sustained Social & Price Momentum Leaders")
-    st.caption("Top institutional and mid-cap assets maintaining consistent social presence and volume expansion over the trailing 7 days.")
-    
+    st.markdown("#### 📈 7-Day Cumulative Hype & Momentum Leaders")
+    st.caption("High-velocity tokens sustaining multi-day social momentum and continuous institutional capital flow over the last 7 days.")
     if not df_7d.empty:
-        cols_7d = ['Rank', 'Symbol', 'Name', 'Price ($)', '24h Change (%)', '7-Day Gain (%)', '7-Day Status', 'Heatmap Link', 'Arkham Link']
-        st.dataframe(
-            df_7d[[c for c in cols_7d if c in df_7d.columns]],
-            column_config={
-                "Heatmap Link": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                "Arkham Link": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        csv_7 = df_7d.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Export 7-Day Momentum Report", data=csv_7, file_name="social_7d_momentum_report.csv", mime="text/csv")
+        st.dataframe(df_7d, column_config=COL_CONFIGS, use_container_width=True, hide_index=True)
+        csv_7d = df_7d.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Download 7d Momentum Report", data=csv_7d, file_name="7d_momentum_report.csv", mime="text/csv")
     else:
-        st.warning("7-day momentum metrics are currently unavailable. Please refresh.")
+        st.warning("7-day momentum metrics temporarily unavailable. Please retry shortly.")
 
-# ----------------- 30 Days Tab -----------------
+# --- TAB 3: 30D ---
 with tab_30d:
-    st.markdown("#### 🌕 30-Day Macro Narrative & Sector Flow Leaders")
+    st.markdown("#### 🟡 30-Day Macro Narrative & Sector Flow Leaders")
     st.caption("Market leaders dominating monthly institutional discussions, capital inflows, and dominant crypto sector narratives.")
-    
     if not df_30d.empty:
-        cols_30d = ['Rank', 'Symbol', 'Name', 'Price ($)', '24h Change (%)', '30-Day Gain (%)', 'Macro Narrative', 'Heatmap Link', 'Arkham Link']
-        st.dataframe(
-            df_30d[[c for c in cols_30d if c in df_30d.columns]],
-            column_config={
-                "Heatmap Link": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                "Arkham Link": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
-        csv_30 = df_30d.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Export 30-Day Narrative Report", data=csv_30, file_name="social_30d_narrative_report.csv", mime="text/csv")
+        st.dataframe(df_30d, column_config=COL_CONFIGS, use_container_width=True, hide_index=True)
+        csv_30d = df_30d.to_csv(index=False).encode('utf-8')
+        st.download_button(label="📥 Download 30d Macro Report", data=csv_30d, file_name="30d_macro_report.csv", mime="text/csv")
     else:
-        st.warning("30-day macro narrative data is currently unavailable. Please refresh.")
+        st.warning("30-day macro metrics temporarily unavailable. Please retry shortly.")
 
 # ========================================================
-# Terminal Footer
+# Footer
 # ========================================================
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
 st.markdown(
     """
     <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
         © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
-        <i>Multi-Horizon Sentiment & Viral Analytics Powered by CoinGecko, CoinGlass & Arkham Intelligence</i>
+        <i>Multi-Timeframe Sentiment Engine Powered by CoinGecko, CoinGlass & Arkham</i>
     </div>
     """,
     unsafe_allow_html=True
