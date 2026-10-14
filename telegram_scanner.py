@@ -10,6 +10,7 @@ from datetime import datetime
 TELEGRAM_BOT_TOKEN = "8968950600:AAEF8nDDEYMYmDQQe59Yoi70dqWuKQZTL0k"
 TELEGRAM_CHAT_ID = "8605377336"
 
+# বাইনান্সের গ্লোবাল রিকোয়েস্ট হেডার
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
@@ -20,7 +21,7 @@ EXCLUDE_SYMBOLS = [
 ]
 
 def send_telegram_message(message):
-    """টেলিগ্রামে এইচটিএমএল ফরম্যাটে মেসেজ পাঠায়"""
+    """টেলিগ্রামে মেসেজ পাঠায়"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -31,87 +32,85 @@ def send_telegram_message(message):
     try:
         res = requests.post(url, json=payload, timeout=12)
         print("Telegram Status Code:", res.status_code)
-        if res.status_code != 200:
-            print("Telegram Error Response:", res.text)
+        if res.status_code == 200:
+            print("✅ Telegram notification sent successfully!")
         else:
-            print("✅ Telegram alert sent successfully!")
+            print("Telegram Error Response:", res.text)
     except Exception as e:
         print(f"Telegram Exception: {e}")
 
-def get_all_futures_symbols():
-    """একাধিক নির্ভরযোগ্য গ্লোবাল মিরর এন্ডপয়েন্ট থেকে সক্রিয় পেয়ার সংগ্রহ"""
-    # মেথড ১: Binance Global Mirror
-    try:
-        url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
-        res = requests.get(url, headers=HEADERS, timeout=10).json()
-        symbols = [
-            s['symbol'] for s in res.get('symbols', []) 
-            if s.get('status') == 'TRADING' and s.get('contractType') == 'PERPETUAL' 
-            and s['symbol'].endswith('USDT') and s['symbol'] not in EXCLUDE_SYMBOLS
-        ]
-        if len(symbols) > 50:
-            print(f"✅ সফলভাবে মোট সক্রিয় ফিউচার্স পেয়ার পাওয়া গেছে: {len(symbols)} টি")
-            return sorted(symbols)
-    except Exception:
-        pass
-
-    # মেথড ২: KuCoin Futures Mirror
-    try:
-        url = "https://api-futures.kucoin.com/api/v1/contracts/active"
-        res = requests.get(url, headers=HEADERS, timeout=10).json()
-        if res.get("code") == "200000":
+def get_binance_futures_symbols():
+    """বাইনান্সের নিজস্ব পাবলিক ডেটা থেকে সমস্ত সক্রিয় ফিউচার্স পেয়ার ফেচিং"""
+    endpoints = [
+        "https://fapi.binance.com/fapi/v1/exchangeInfo",
+        "https://data-api.binance.vision/api/v3/exchangeInfo"
+    ]
+    
+    for url in endpoints:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=12).json()
             symbols = []
-            for item in res.get("data", []):
-                sym = item.get("symbol", "")
-                if sym.endswith("USDTM"):
-                    clean = sym.replace("USDTM", "USDT")
-                    if clean not in EXCLUDE_SYMBOLS:
-                        symbols.append(clean)
-            if len(symbols) > 50:
-                print(f"✅ KuCoin মিরর থেকে সক্রিয় পেয়ার পাওয়া গেছে: {len(symbols)} টি")
-                return sorted(symbols)
-    except Exception:
-        pass
+            for s in res.get("symbols", []):
+                sym = s.get("symbol", "")
+                status = s.get("status", "")
+                if sym.endswith("USDT") and status == "TRADING" and sym not in EXCLUDE_SYMBOLS:
+                    symbols.append(sym)
+            if len(symbols) >= 50:
+                symbols = sorted(list(set(symbols)))
+                print(f"✅ বাইনান্স থেকে মোট সক্রিয় পেয়ার পাওয়া গেছে: {len(symbols)} টি")
+                return symbols
+        except Exception:
+            continue
 
+    # বাইনান্স পাবলিক টপ পেয়ার ফলব্যাক
+    print("⚠️ ব্যাকআপ শীর্ষ বাইনান্স পেয়ার তালিকা ব্যবহার করা হচ্ছে।")
     return [
         "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
         "XRPUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", 
-        "APTUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT"
+        "APTUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "TAOUSDT", "RENDERUSDT",
+        "INJUSDT", "ARBUSDT", "OPUSDT", "TIAUSDT", "SEIUSDT", "SUNUSDT",
+        "MEMEUSDT", "BATUSDT", "MAGICUSDT", "LUMIAUSDT", "AAVEUSDT", "GALAUSDT"
     ]
 
-def get_klines(symbol, interval="1d", limit=60):
-    url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=6).json()
-        if isinstance(res, list) and len(res) >= 20:
-            df = pd.DataFrame(res, columns=[
-                "open_time", "open", "high", "low", "close", "volume",
-                "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
-            ])
-            for col in ["open", "high", "low", "close", "volume"]:
-                df[col] = df[col].astype(float)
-            return df
-    except Exception:
-        pass
+def get_binance_klines(symbol, interval="1d", limit=60):
+    """বাইনান্সের আনব্লকড ডেটা ক্লাউড থেকে ক্যান্ডেলস্টিক ফেচিং"""
+    endpoints = [
+        f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
+        f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}",
+        f"https://fapi.binance.com/fapi/v1/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    ]
+    for url in endpoints:
+        try:
+            res = requests.get(url, headers=HEADERS, timeout=5).json()
+            if isinstance(res, list) and len(res) >= 20:
+                df = pd.DataFrame(res, columns=[
+                    "open_time", "open", "high", "low", "close", "volume",
+                    "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
+                ])
+                for col in ["open", "high", "low", "close", "volume"]:
+                    df[col] = df[col].astype(float)
+                return df
+        except Exception:
+            continue
     return None
 
 def run_scanner():
     start_time = time.time()
-    pairs = get_all_futures_symbols()
+    pairs = get_binance_futures_symbols()
     total_pairs = len(pairs)
     
     valid_setups = []
     scanned_count = 0
 
-    print(f">> মোট {total_pairs} টি ফিউচার্স পেয়ার স্ক্যান শুরু হচ্ছে...")
+    print(f">> বাইনান্সের মোট {total_pairs} টি কয়েন স্ক্যান শুরু হচ্ছে...")
 
     for sym in pairs:
         scanned_count += 1
         if scanned_count % 50 == 0 or scanned_count == total_pairs:
             print(f"Progress: [{scanned_count}/{total_pairs}] টি সম্পন্ন...")
 
-        # ১. ডেইলি ট্রেন্ড চেক
-        df_1d = get_klines(sym, interval="1d", limit=60)
+        # ১. বাইনান্স ডেইলি ক্যান্ডেল ও SMA 50/200 চেক
+        df_1d = get_binance_klines(sym, interval="1d", limit=60)
         if df_1d is None:
             time.sleep(0.02)
             continue
@@ -136,14 +135,14 @@ def run_scanner():
             time.sleep(0.02)
             continue
 
-        # ২. ৩-দিনের কম্প্রেশন
+        # ২. ৩-দিনের কম্প্রেশন চেক
         range_3d = (df_1d["high"].tail(3).max() - df_1d["low"].tail(3).min()) / d_close * 100
         if range_3d > 18.0:
             time.sleep(0.02)
             continue
 
-        # ৩. ৪-ঘণ্টার বাউন্স ও ভলিউম
-        df_4h = get_klines(sym, interval="4h", limit=30)
+        # ৩. বাইনান্স ৪-ঘণ্টার বাউন্স ও ভলিউম
+        df_4h = get_binance_klines(sym, interval="4h", limit=30)
         if df_4h is None:
             time.sleep(0.02)
             continue
@@ -174,11 +173,11 @@ def run_scanner():
     elapsed = int(time.time() - start_time)
     today_date = datetime.utcnow().strftime("%Y-%m-%d")
 
-    # টেলিগ্রামে পূর্ণাঙ্গ রিপোর্ট প্রেরণ
+    # টেলিগ্রামে বাইনান্স রিপোর্ট প্রেরণ
     if valid_setups:
-        msg = f"🏛️ <b>FULL MARKET INSTITUTIONAL SCAN REPORT</b>\n"
+        msg = f"🏛️ <b>BINANCE INSTITUTIONAL SCAN REPORT</b>\n"
         msg += f"📅 তারিখ: <code>{today_date}</code> (Day Close Review)\n"
-        msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
+        msg += f"🔍 মোট স্ক্যান করা বাইনান্স পেয়ার: <b>{total_pairs} টি</b>\n"
         msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n"
         msg += f"🎯 কোয়ালিফাই করেছে: <b>{len(valid_setups)} টি</b>\n\n"
 
@@ -193,12 +192,12 @@ def run_scanner():
             msg += "----------------------------\n"
         send_telegram_message(msg)
     else:
-        msg = f"🏛️ <b>FULL MARKET INSTITUTIONAL SCAN REPORT</b>\n"
+        msg = f"🏛️ <b>BINANCE INSTITUTIONAL SCAN REPORT</b>\n"
         msg += f"📅 তারিখ: <code>{today_date}</code> (Day Close Review)\n"
-        msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
+        msg += f"🔍 মোট স্ক্যান করা বাইনান্স পেয়ার: <b>{total_pairs} টি</b>\n"
         msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n\n"
         msg += "🛡️ <b>ফলাফল: কোনো কয়েন শর্ত পূরণ করেনি।</b>\n"
-        msg += "💡 <i>পুরো ৫০০+ ফিউচার্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। মূলধন সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
+        msg += "💡 <i>পুরো বাইনান্স মার্কেটে কোনো কয়েনে নিরাপদ ডেইলি SMA সাপোর্ট ও বাউন্স মেলেনি। ক্যাপিটাল সম্পূর্ণ সুরক্ষিত রাখুন।</i>"
         send_telegram_message(msg)
 
 if __name__ == "__main__":
