@@ -2,7 +2,7 @@ name: Day Auto Swing Alert Engine
 
 on:
   schedule:
-    # 00:15 UTC = ভোর 05:45 AM IST (Daily Candle Close এর ঠিক পর)
+    # প্রতিদিন ভোর 05:45 AM IST (00:15 UTC) এ স্বয়ংক্রিয়ভাবে চলবে
     - cron: '15 0 * * *'
   workflow_dispatch:
 
@@ -20,10 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests pandas numpy ccxt
+          pip install requests pandas numpy
 
       - name: Run Telegram Scanner
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python telegram_scanner.py
