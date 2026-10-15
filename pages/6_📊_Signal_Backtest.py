@@ -1,221 +1,304 @@
 import streamlit as st
-import ccxt
 import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime
+import requests
+import os
 
-st.set_page_config(page_title="Portfolio Signal Audit", layout="wide")
+st.set_page_config(
+    page_title="Telegram Signal Live Audit & Performance",
+    page_icon="📊",
+    layout="wide"
+)
 
-st.title("🏛️ Grade-A+ Institutional Signal Audit & Inspector")
-st.markdown("টেলিগ্রাম বটের জেনারেট করা সিগন্যালের সাথে ডেইলি ক্যান্ডেল, RSI, MACD ও ভলিউম কনফার্মেশনের সরাসরি অডিট।")
+# ========================================================
+# 🎨 Professional Dark Cyberpunk Glassmorphic Theme
+# ========================================================
+CUSTOM_CSS = """
+<style>
+/* Darken top Streamlit header bar */
+header[data-testid="stHeader"] {
+    background-color: rgba(10, 15, 29, 0.95) !important;
+}
 
-# সর্বাধিক ট্রেডেড শীর্ষ পেয়ারের তালিকা
-TOP_PAIRS = [
-    "TRXUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "DOGEUSDT", "BNBUSDT", 
-    "XRPUSDT", "ADAUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", "PEPEUSDT", 
-    "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT", "SUNUSDT", "MEMEUSDT"
-]
+/* Full Page Background with Overlay */
+.stApp {
+    background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
+                url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    color: #F8FAFC !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
-@st.cache_data(ttl=300)
-def fetch_klines_safe(symbol, timeframe="4h", limit=100):
+/* Global Text Colors */
+label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
+    color: #F8FAFC !important;
+}
+
+/* Selection Color Fix: No white glitch on clicks */
+::selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+::-moz-selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+
+/* Glowing Title */
+.terminal-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #F59E0B, #10B981, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.terminal-subtitle {
+    font-size: 0.95rem;
+    color: #CBD5E1 !important;
+    margin-top: -6px;
+}
+
+/* Frosted Glass Panels */
+.glass-panel {
+    background: rgba(17, 24, 39, 0.75);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* Metric Display Cards */
+div[data-testid="stMetric"] {
+    background: rgba(17, 24, 39, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 16px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+}
+div[data-testid="stMetricLabel"] p {
+    color: #94A3B8 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+}
+div[data-testid="stMetricValue"] div {
+    color: #38BDF8 !important;
+    font-weight: 800 !important;
+}
+
+/* Dataframe Glass Styling */
+div[data-testid="stDataFrame"] {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    padding: 10px;
+}
+
+/* Download Button Fix */
+.stDownloadButton button,
+div[data-testid="stDownloadButton"] > button {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.3s ease !important;
+}
+.stDownloadButton button:hover,
+div[data-testid="stDownloadButton"] > button:hover {
+    background: linear-gradient(135deg, #34D399 0%, #10B981 100%) !important;
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+}
+
+/* Sync Button */
+.stButton > button {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%) !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: none !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 18px rgba(245, 158, 11, 0.35) !important;
+}
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(245, 158, 11, 0.5) !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: rgba(11, 15, 25, 0.95) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+</style>
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+
+# ========================================================
+# Sidebar (Profile Only)
+# ========================================================
+st.sidebar.markdown("### 👑 Creator Profile")
+st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
+st.sidebar.caption("Telegram Signal Forensics & Execution Quant")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Signal Ledger Note:** Automatically syncs generated Telegram signals with live Binance price action to verify TP/SL hits and capital inflow.")
+
+# ========================================================
+# Header Section
+# ========================================================
+st.markdown("<div class='terminal-title'>📊 TELEGRAM SIGNAL AUDIT & LIVE PERFORMANCE</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Real-Time Signal Validation, Inflow Metrics & Live Win-Rate Ledger</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+LOG_FILE = "telegram_signals_log.csv"
+
+# বাইনান্স লাইভ প্রাইস আনা
+@st.cache_data(ttl=20)
+def get_live_prices():
     try:
-        exchange = ccxt.binance({'enableRateLimit': True})
-        clean_sym = symbol.replace("USDT", "") + "/USDT"
-        ohlcv = exchange.fetch_ohlcv(clean_sym, timeframe=timeframe, limit=limit)
-        if ohlcv and len(ohlcv) >= 25:
-            df = pd.DataFrame(ohlcv, columns=["open_time", "open", "high", "low", "close", "volume"])
-            df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
-            for c in ["open", "high", "low", "close", "volume"]:
-                df[c] = df[c].astype(float)
-            return df
+        url = "https://fapi.binance.com/fapi/v1/ticker/price"
+        res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5).json()
+        return {p['symbol'].replace("USDT", ""): float(p['price']) for p in res if p['symbol'].endswith("USDT")}
     except Exception:
-        pass
-    return None
+        return {}
 
-def calculate_indicators(df):
-    df["sma50"] = df["close"].rolling(50, min_periods=10).mean()
-    df["sma200"] = df["close"].rolling(200, min_periods=15).mean()
-    df["vol_sma"] = df["volume"].rolling(20, min_periods=5).mean()
+# ========================================================
+# Main Page Control Bar (No Settings in Sidebar)
+# ========================================================
+col_ctrl1, col_ctrl2 = st.columns([4, 1])
+with col_ctrl1:
+    st.markdown("""
+        <div class='glass-panel' style='padding: 14px 20px; margin-bottom: 0;'>
+            <span style='color: #38BDF8; font-weight: 600;'>🎯 Live Signal Execution Ledger:</span>
+            <span style='color: #CBD5E1;'> Automatic verification of entries, targets, and stops directly against live Binance liquidity.</span>
+        </div>
+    """, unsafe_allow_html=True)
+with col_ctrl2:
+    if st.button("🔄 Sync Live Signal Status", use_container_width=True):
+        st.cache_data.clear()
 
-    # RSI
-    delta = df["close"].diff()
-    gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-    rs = gain / loss.replace(0, np.nan)
-    df["rsi"] = 100 - (100 / (1 + rs))
+st.markdown("<br>", unsafe_allow_html=True)
 
-    # MACD
-    ema12 = df["close"].ewm(span=12, adjust=False).mean()
-    ema26 = df["close"].ewm(span=26, adjust=False).mean()
-    df["macd"] = ema12 - ema26
-    df["macd_signal"] = df["macd"].ewm(span=9, adjust=False).mean()
-    df["macd_hist"] = df["macd"] - df["macd_signal"]
-    return df
-
-def scan_symbol(symbol):
-    df_4h = fetch_klines_safe(symbol, timeframe="4h", limit=100)
-    df_1d = fetch_klines_safe(symbol, timeframe="1d", limit=40)
-    
-    if df_4h is None:
-        return None
-
-    df_4h = calculate_indicators(df_4h)
-    
-    # ডেইলি ডাটা ও ম্যাক্রো ট্রেন্ড চেক
-    daily_status = "N/A"
-    if df_1d is not None and len(df_1d) >= 15:
-        df_1d = calculate_indicators(df_1d)
-        d_close = df_1d.iloc[-1]["close"]
-        d_50 = df_1d.iloc[-1]["sma50"]
-        d_200 = df_1d.iloc[-1]["sma200"]
-        if not pd.isna(d_50) and d_close >= d_50:
-            daily_status = "Bullish (> 50 SMA)"
-        elif not pd.isna(d_200) and d_close >= d_200:
-            daily_status = "Bullish (> 200 SMA)"
-        else:
-            daily_status = "Bearish (< SMA)"
-
-    # গত ৪ দিনের স্ক্যান (২৪টি ক্যান্ডেল)
-    scan_start = max(10, len(df_4h) - 24)
-
-    for i in range(scan_start, len(df_4h)):
-        row = df_4h.iloc[i]
-        
-        for ma_col, ma_name in [("sma50", "4H SMA 50"), ("sma200", "4H SMA 200")]:
-            ma_val = row[ma_col]
-            if pd.isna(ma_val):
-                continue
-
-            dist_pct = ((row["close"] - ma_val) / ma_val) * 100
-            # মূল রিটেস্ট ফিল্টার
-            retest_hit = (row["low"] <= ma_val * 1.01) or (0 <= dist_pct <= 4.5)
-
-            if retest_hit and row["close"] >= ma_val * 0.99:
-                entry = float(row["close"])
-                sl = float(ma_val * 0.965)
-                risk = max(entry - sl, entry * 0.03)
-
-                tp1 = entry + (risk * 1.5)
-                tp2 = entry + (risk * 2.5)
-
-                outcome = "ACTIVE"
-                pnl = 0.0
-
-                for j in range(i + 1, len(df_4h)):
-                    f_row = df_4h.iloc[j]
-                    if float(f_row["low"]) <= sl:
-                        outcome = "SL HIT ❌"
-                        pnl = ((sl - entry) / entry) * 100
-                        break
-                    elif float(f_row["high"]) >= tp2:
-                        outcome = "TP 2 HIT 🎯"
-                        pnl = ((tp2 - entry) / entry) * 100
-                        break
-                    elif float(f_row["high"]) >= tp1:
-                        outcome = "TP 1 HIT 🟢"
-                        pnl = ((tp1 - entry) / entry) * 100
-                        break
-
-                if outcome == "ACTIVE":
-                    pnl = ((float(df_4h.iloc[-1]["close"]) - entry) / entry) * 100
-
-                # কনফার্মেশন চেকিং
-                is_green = "Green 🟢" if row["close"] >= row["open"] else "Red 🔴"
-                rsi_val = f"{row['rsi']:.1f}" if not pd.isna(row["rsi"]) else "N/A"
-                vol_status = "High 🔥" if row["volume"] >= row["vol_sma"] else "Low 💤"
-
-                return {
-                    "Symbol": symbol,
-                    "First Signal Time": row["open_time"].strftime("%Y-%m-%d %H:%M"),
-                    "Daily Macro": daily_status,
-                    "Candle": is_green,
-                    "RSI": rsi_val,
-                    "Volume": vol_status,
-                    "Entry": entry,
-                    "Stop Loss": sl,
-                    "TP1": tp1,
-                    "Status": outcome,
-                    "PnL %": pnl,
-                    "df": df_4h
-                }
-    return None
-
-with st.spinner("মার্কেট স্ক্যান করে সিগন্যাল ও কনফ্লুয়েন্স রেজাল্ট লোড করা হচ্ছে..."):
-    results = []
-    for s in TOP_PAIRS:
-        res = scan_symbol(s)
-        if res:
-            results.append(res)
-
-if results:
-    res_df = pd.DataFrame(results)
-
-    st.subheader("📌 প্রাতিষ্ঠানিক অডিট সামারি (Overall Portfolio Status)")
-    total_signals = len(res_df)
-    tp_hits = len(res_df[res_df["Status"].str.contains("TP")])
-    sl_hits = len(res_df[res_df["Status"].str.contains("SL")])
-    active_trades = len(res_df[res_df["Status"] == "ACTIVE"])
-    win_rate = (tp_hits / (tp_hits + sl_hits)) * 100 if (tp_hits + sl_hits) > 0 else 0
-    total_pnl = res_df["PnL %"].sum()
-    avg_pnl = res_df["PnL %"].mean()
-
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("মোট সিগন্যাল", f"{total_signals} টি")
-    m2.metric("সফল (TP Hit)", f"{tp_hits} টি", f"{win_rate:.1f}% Win Rate")
-    m3.metric("স্টপ লস (SL Hit)", f"{sl_hits} টি")
-    m4.metric("চলমান (Active)", f"{active_trades} টি")
-    m5.metric("সর্বমোট PnL", f"{total_pnl:+.2f}%", f"গড়: {avg_pnl:+.2f}%")
-
-    st.markdown("---")
-
-    display_cols = ["Symbol", "First Signal Time", "Daily Macro", "Candle", "RSI", "Volume", "Entry", "Stop Loss", "TP1", "Status", "PnL %"]
-    st.dataframe(
-        res_df[display_cols].style.format({
-            "Entry": "{:.6f}",
-            "Stop Loss": "{:.6f}",
-            "TP1": "{:.6f}",
-            "PnL %": "{:+.2f}%"
-        }),
-        use_container_width=True
-    )
-
-    st.markdown("---")
-
-    st.subheader("🕯️ সিগন্যালের চার্ট ভিজ্যুয়ালাইজার")
-    selected_symbol = st.selectbox("চার্ট দেখার জন্য কয়েন নির্বাচন করুন:", res_df["Symbol"].tolist())
-    selected_data = next(item for item in results if item["Symbol"] == selected_symbol)
-    df_plot = selected_data["df"]
-
-    fig = go.Figure()
-    fig.add_trace(go.Candlestick(
-        x=df_plot["open_time"], open=df_plot["open"], high=df_plot["high"], low=df_plot["low"], close=df_plot["close"],
-        name="Price"
-    ))
-    fig.add_trace(go.Scatter(x=df_plot["open_time"], y=df_plot["sma50"], line=dict(color='blue', width=1.5), name="4H SMA 50"))
-    if not df_plot["sma200"].isna().all():
-        fig.add_trace(go.Scatter(x=df_plot["open_time"], y=df_plot["sma200"], line=dict(color='orange', width=1.5), name="4H SMA 200"))
-
-    s_time = selected_data["First Signal Time"]
-    entry_p = selected_data["Entry"]
-    fig.add_annotation(
-        x=s_time, y=entry_p,
-        text=f"BUY ({selected_data['Status']})",
-        showarrow=True, arrowhead=2, arrowcolor="green", arrowsize=1.2,
-        bgcolor="black", font=dict(color="white", size=10)
-    )
-    fig.add_shape(type="line", x0=s_time, x1=df_plot["open_time"].iloc[-1], y0=entry_p, y1=entry_p, line=dict(color="cyan", width=1, dash="dot"))
-    fig.add_shape(type="line", x0=s_time, x1=df_plot["open_time"].iloc[-1], y0=selected_data["Stop Loss"], y1=selected_data["Stop Loss"], line=dict(color="red", width=1, dash="dash"))
-    fig.add_shape(type="line", x0=s_time, x1=df_plot["open_time"].iloc[-1], y0=selected_data["TP1"], y1=selected_data["TP1"], line=dict(color="green", width=1, dash="dash"))
-
-    fig.update_layout(
-        xaxis_rangeslider_visible=False,
-        height=550,
-        template="plotly_dark",
-        title=f"{selected_symbol} 4H Structure & Inspection",
-        yaxis_title="Price (USDT)"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
+# ========================================================
+# Processing Signal History
+# ========================================================
+if not os.path.exists(LOG_FILE):
+    st.info("💡 এখনও পর্যন্ত কোনো সিগন্যাল লগ তৈরি হয়নি। টেলিগ্রাম স্ক্যানার সিগন্যাল পাঠালে স্বয়ংক্রিয়ভাবে এখানে তালিকা তৈরি হবে।")
 else:
-    st.info("ℹ️ স্ক্যান করা পেয়ারগুলোতে গত ৪ দিনে কোনো রিটেস্ট ডাটা পাওয়া যায়নি।")
+    try:
+        df = pd.read_csv(LOG_FILE)
+    except Exception:
+        df = pd.DataFrame()
+
+    if df.empty:
+        st.info("💡 সিগন্যাল ফাইলটি বর্তমানে খালি। নতুন সিগন্যালের অপেক্ষায়...")
+    else:
+        live_prices = get_live_prices()
+        
+        # লাইভ রেজাল্ট চেক ও স্ট্যাটাস আপডেট
+        for idx, row in df.iterrows():
+            sym = str(row["Symbol"]).replace("USDT", "").upper()
+            curr_price = live_prices.get(sym)
+            
+            if curr_price:
+                entry = float(row["Entry_Price"])
+                tp = float(row["Take_Profit"])
+                sl = float(row["Stop_Loss"])
+                sig_type = str(row["Signal_Type"]).upper()
+                
+                # লং সিগন্যাল রেজাল্ট
+                if sig_type == "LONG":
+                    if curr_price >= tp:
+                        df.at[idx, "Status"] = "🎯 Target Hit (WIN)"
+                    elif curr_price <= sl:
+                        df.at[idx, "Status"] = "🛑 Stop Loss Hit (LOSS)"
+                    else:
+                        pnl_pct = ((curr_price - entry) / entry) * 100
+                        df.at[idx, "Status"] = f"⏳ Running ({pnl_pct:+.2f}%)"
+                        
+                # শর্ট সিগন্যাল রেজাল্ট
+                elif sig_type == "SHORT":
+                    if curr_price <= tp:
+                        df.at[idx, "Status"] = "🎯 Target Hit (WIN)"
+                    elif curr_price >= sl:
+                        df.at[idx, "Status"] = "🛑 Stop Loss Hit (LOSS)"
+                    else:
+                        pnl_pct = ((entry - curr_price) / entry) * 100
+                        df.at[idx, "Status"] = f"⏳ Running ({pnl_pct:+.2f}%)"
+
+                df.at[idx, "Current_Price"] = curr_price
+
+        # মেট্রিক্স হিসেব
+        total_signals = len(df)
+        wins = len(df[df["Status"].str.contains("Target Hit", na=False)])
+        losses = len(df[df["Status"].str.contains("Stop Loss", na=False)])
+        running = len(df[df["Status"].str.contains("Running", na=False)])
+        
+        decided_trades = wins + losses
+        win_rate = (wins / decided_trades * 100) if decided_trades > 0 else 0.0
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Telegram Signals", f"{total_signals}")
+        c2.metric("Target Achieved (Wins)", f"{wins}", f"Win Rate: {win_rate:.1f}%")
+        c3.metric("Stop Loss Hit (Losses)", f"{losses}")
+        c4.metric("Active Running Signals", f"{running}")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("📋 Live Signal Execution & Audit Ledger")
+        st.caption("All generated signals from telegram_scanner.py logged in real-time with continuous TP/SL checking:")
+
+        # লিংক ও কলাম কনফিগারেশন
+        df["Liquidity Heatmap"] = df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
+        df["On-Chain Intel"] = df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{str(s).lower()}")
+
+        display_cols = [
+            "Signal_Time", "Symbol", "Signal_Type", "Entry_Price", 
+            "Take_Profit", "Stop_Loss", "Current_Price", "Inflow_Volume_USD", 
+            "Status", "Liquidity Heatmap", "On-Chain Intel"
+        ]
+        available_cols = [c for c in display_cols if c in df.columns]
+
+        st.dataframe(
+            df[available_cols],
+            column_config={
+                "Entry_Price": st.column_config.NumberColumn("Entry ($)", format="$%.4f"),
+                "Take_Profit": st.column_config.NumberColumn("TP Target ($)", format="$%.4f"),
+                "Stop_Loss": st.column_config.NumberColumn("Stop Loss ($)", format="$%.4f"),
+                "Current_Price": st.column_config.NumberColumn("Live Price ($)", format="$%.4f"),
+                "Inflow_Volume_USD": st.column_config.NumberColumn("Inflow Vol ($)", format="$%.2f"),
+                "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+                "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
+            },
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        csv_data = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Download Telegram Signal Audit Report (CSV)",
+            data=csv_data,
+            file_name="telegram_signals_audit_report.csv",
+            mime="text/csv"
+        )
+
+# ========================================================
+# Footer
+# ========================================================
+st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
+        © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
+        <i>Telegram Signal Ledger & Live Execution Engine Powered by Binance Futures</i>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
