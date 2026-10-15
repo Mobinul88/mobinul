@@ -1,8 +1,9 @@
-Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Funding_Rate_Pct,Open_Interest,Forensic_Reason,Outcome_Category,Hours_Sustained,Status
-2026-10-15 20:35:29,CREAM,65.35,2.1,2.1,2.25,276098.07379,0.0,0.0,⚠️ Low-Float / Spike,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,PNT,45.23,0.035,0.035,0.035,261845.0621,0.0,0.0,⚠️ Low-Float / Spike,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,BAT,26.06,0.2143,0.2143,0.2197,8216751.9903,0.0,0.0,⚡ Aggressive Momentum Accumulation,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,ANIME,20.96,0.00352,0.00352,0.00393,6785265.431033,0.0,0.0,⚡ Aggressive Momentum Accumulation,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,OSMO,18.54,0.0454,0.0454,0.054,5592769.871688,0.0,0.0,⚡ Aggressive Momentum Accumulation,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,⚠️ Low-Float / Spike,Analyzing...,1.0,ACTIVE_TRACKING
-2026-10-15 20:35:29,NXPC,16.44,0.2316,0.2316,0.3003,8978369.75873,0.0,0.0,⚡ Aggressive Momentum Accumulation,Analyzing...,1.0,ACTIVE_TRACKING
+Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
+2026-10-15 21:08:19,BAT,28.55,0.217,0.217,0.2197,8536954.5713,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-15 21:08:19,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-15 21:08:19,ANIME,16.15,0.00338,0.00338,0.00393,7160087.214287,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-15 21:08:19,NXPC,15.69,0.23,0.23,0.3003,9184765.99431,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-15 21:08:19,CYPHB,15.33,3.01,3.01,3.08,447098.798,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-15 20:35:29,CREAM,65.35,2.1,2.1,2.25,276098.07379,,,,,,⚠️ Low-Float / Spike,Analyzing...,1.0,ACTIVE_TRACKING,0.0,0.0
+2026-10-15 20:35:29,PNT,45.23,0.035,0.035,0.035,261845.0621,,,,,,⚠️ Low-Float / Spike,Analyzing...,1.0,ACTIVE_TRACKING,0.0,0.0
+2026-10-15 20:35:29,OSMO,18.54,0.0454,0.0454,0.054,5592769.871688,,,,,,⚡ Aggressive Momentum Accumulation,Analyzing...,1.0,ACTIVE_TRACKING,0.0,0.0
