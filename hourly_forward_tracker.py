@@ -18,90 +18,99 @@ session.headers.update({
     "Accept": "application/json",
 })
 
-# বাইনান্সের কার্যকর ফিউচার্স এন্ডপয়েন্ট
-FUTURES_BASES = [
-    "https://fapi.binance.com",
-    "https://fapi.binance.me",
-    "https://fapi.binance.vision",
-]
-
-# ১. লাইভ ফিউচার্স টিকার সংগ্রহ
+# ১. ফিউচার্স টিকার ফেচ (বাইনান্সের অল্টারনেটিভ মিরর রুট)
 tickers = []
 active_base = None
 
-for base in FUTURES_BASES:
+MIRRORS = [
+    "https://fapi.binance.com",
+    "https://fapi.binance.me",
+    "https://data-api.binance.vision",
+]
+
+for base in MIRRORS:
   try:
-    url = f"{base}/fapi/v1/ticker/24hr"
-    resp = session.get(url, timeout=12)
+    if "vision" in base:
+      url = f"{base}/api/v3/ticker/24hr"
+    else:
+      url = f"{base}/fapi/v1/ticker/24hr"
+
+    resp = session.get(url, timeout=10)
     if resp.status_code == 200:
       data = resp.json()
       if isinstance(data, list) and len(data) > 0:
         tickers = data
         active_base = base
-        print(f"✅ Successfully loaded {len(tickers)} tickers from: {base}")
+        print(f"✅ Loaded {len(tickers)} tickers from: {base}")
         break
   except Exception as e:
-    print(f"Connection failed for {base}: {e}")
+    print(f"Mirror failed {base}: {e}")
 
-if not tickers:
-  print("❌ All endpoints failed. Exiting.")
-  exit(1)
-
-# ২. ফান্ডিং রেট ম্যাপ তৈরি
+# ২. ফিউচার্স প্রিমিয়াম ইনডেক্স ও ফান্ডিং রেট ম্যাপ
 funding_map = {}
-try:
-  fr_url = f"{active_base}/fapi/v1/premiumIndex"
-  r_fr = session.get(fr_url, timeout=10)
-  if r_fr.status_code == 200:
-    for item in r_fr.json():
-      s = item.get("symbol", "")
-      if s.endswith("USDT"):
-        funding_map[s] = float(item.get("lastFundingRate", 0)) * 100
-    print(f"✅ Loaded {len(funding_map)} funding rates.")
-except Exception as e:
-  print(f"Warning loading premium index: {e}")
-
-
-# ৩. ওপেন ইন্টারেস্ট
-def get_current_oi(base_url, symbol):
+premium_urls = [
+    "https://fapi.binance.com/fapi/v1/premiumIndex",
+    "https://fapi.binance.me/fapi/v1/premiumIndex",
+]
+for p_url in premium_urls:
   try:
-    url = f"{base_url}/fapi/v1/openInterest?symbol={symbol}"
-    res = session.get(url, timeout=4)
-    if res.status_code == 200:
-      return float(res.json().get("openInterest", 0))
+    r_fr = session.get(p_url, timeout=8)
+    if r_fr.status_code == 200:
+      for item in r_fr.json():
+        sym = item.get("symbol", "")
+        if sym.endswith("USDT"):
+          funding_map[sym] = float(item.get("lastFundingRate", 0)) * 100
+      print(f"✅ Loaded {len(funding_map)} live funding rates.")
+      break
   except Exception:
     pass
+
+
+# ৩. লাইভ ওপেন ইন্টারেস্ট
+def get_current_oi(symbol):
+  for b in ["https://fapi.binance.com", "https://fapi.binance.me"]:
+    try:
+      url = f"{b}/fapi/v1/openInterest?symbol={symbol}"
+      res = session.get(url, timeout=4)
+      if res.status_code == 200:
+        return float(res.json().get("openInterest", 0))
+    except Exception:
+      continue
   return 0.0
 
 
-# ৪. হিস্টোরিক্যাল মেট্রিক্স (Pre-Pump Data)
-def get_pre_pump_data(base_url, symbol):
+# ৪. পাম্পের আগের হিস্টোরিক্যাল ডেটা (Pre-Pump OI ও Pre-Pump Funding)
+def get_pre_pump_data(symbol):
   pre_oi = 0.0
   pre_funding = 0.0
 
   # ২৪ ঘণ্টার আগের ওআই
-  try:
-    url = f"{base_url}/futures/data/openInterestHist?symbol={symbol}&period=1h&limit=24"
-    res = session.get(url, timeout=4)
-    if res.status_code == 200:
-      d = res.json()
-      if isinstance(d, list) and len(d) > 0:
-        pre_oi = float(d[0].get("sumOpenInterest", 0))
-  except Exception:
-    pass
+  for b in ["https://fapi.binance.com", "https://fapi.binance.me"]:
+    try:
+      url = f"{b}/futures/data/openInterestHist?symbol={symbol}&period=1h&limit=24"
+      res = session.get(url, timeout=4)
+      if res.status_code == 200:
+        d = res.json()
+        if isinstance(d, list) and len(d) > 0:
+          pre_oi = float(d[0].get("sumOpenInterest", 0))
+          break
+    except Exception:
+      continue
 
   # আগের সাইকেলের ফান্ডিং রেট
-  try:
-    url = f"{base_url}/fapi/v1/fundingRate?symbol={symbol}&limit=2"
-    res = session.get(url, timeout=4)
-    if res.status_code == 200:
-      d = res.json()
-      if isinstance(d, list) and len(d) > 1:
-        pre_funding = float(d[0].get("fundingRate", 0)) * 100
-      elif isinstance(d, list) and len(d) == 1:
-        pre_funding = float(d[0].get("fundingRate", 0)) * 100
-  except Exception:
-    pass
+  for b in ["https://fapi.binance.com", "https://fapi.binance.me"]:
+    try:
+      url = f"{b}/fapi/v1/fundingRate?symbol={symbol}&limit=2"
+      res = session.get(url, timeout=4)
+      if res.status_code == 200:
+        d = res.json()
+        if isinstance(d, list) and len(d) > 1:
+          pre_funding = float(d[0].get("fundingRate", 0)) * 100
+        elif isinstance(d, list) and len(d) == 1:
+          pre_funding = float(d[0].get("fundingRate", 0)) * 100
+        break
+    except Exception:
+      continue
 
   return pre_oi, pre_funding
 
@@ -120,25 +129,32 @@ def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
     return "📊 Momentum Trend"
 
 
-# ৬. টোকেন নির্বাচন ও ফিল্টারিং
+# ৬. টোকেন ফিল্টারিং ও প্রসেসিং
 rows = []
+# ডিলিস্টেড কয়েন ঠেকানোর ফিল্টার
+EXCLUDE_SYMBOLS = {"CREAM", "PNT", "BOND", "WTC", "VGX", "DF"}
+
 for t in tickers:
   if not isinstance(t, dict):
     continue
   sym = str(t.get("symbol", ""))
 
   if sym.endswith("USDT") and not sym.startswith("1000"):
+    clean_sym = sym.replace("USDT", "")
+    if clean_sym in EXCLUDE_SYMBOLS:
+      continue
+
     try:
       chg = float(t.get("priceChangePercent", 0))
       vol = float(t.get("quoteVolume", 0))
       price = float(t.get("lastPrice", 0))
       high = float(t.get("highPrice", 0))
 
+      # ১৫%+ গেইন ও ৫০K ভলিউম
       if chg >= 15.0 and vol >= 50000 and price > 0:
-        clean_sym = sym.replace("USDT", "")
         cur_fr = funding_map.get(sym, 0.0)
-        cur_oi = get_current_oi(active_base, sym)
-        pre_oi, pre_fr = get_pre_pump_data(active_base, sym)
+        cur_oi = get_current_oi(sym)
+        pre_oi, pre_fr = get_pre_pump_data(sym)
 
         oi_surge = (
             round(((cur_oi - pre_oi) / pre_oi) * 100, 2) if pre_oi > 0 else 0.0
@@ -173,7 +189,7 @@ for t in tickers:
 
 print(f"Total target tokens identified: {len(rows)}")
 
-# ৭. ডেটা ফাইলে সেভ করা
+# ৭. সিএসভি ফাইলে সেভ করা
 if rows:
   df_new = pd.DataFrame(rows).sort_values(
       by="Detected_Gain_Pct", ascending=False
@@ -196,4 +212,4 @@ if rows:
   df_final.to_csv(LOG_FILE, index=False)
   print(f"✅ SUCCESS: Wrote {len(df_final)} records into {LOG_FILE}")
 else:
-  print("No coins currently met 15%+ pump criteria.")
+  print("No coins reached 15%+ in this cycle.")
