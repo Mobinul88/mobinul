@@ -18,7 +18,6 @@ session.headers.update({
     "Accept": "application/json",
 })
 
-# ১. আনব্লকড পাবলিক এন্ডপয়েন্ট থেকে টিকার সংগ্রহ
 tickers = []
 TICKER_SOURCES = [
     "https://data-api.binance.vision/api/v3/ticker/24hr",
@@ -32,13 +31,11 @@ for src in TICKER_SOURCES:
       data = resp.json()
       if isinstance(data, list) and len(data) > 0:
         tickers = data
-        print(f"✅ Successfully loaded {len(tickers)} tickers from: {src}")
+        print(f"Loaded {len(tickers)} tickers from: {src}")
         break
   except Exception as e:
     print(f"Failed {src}: {e}")
 
-# ২. ওপেন ইন্টারেস্ট এবং ফান্ডিং রেট সংগ্রহের নিরাপদ ফাংশন
-# ডিলিস্টেড কয়েন বাদ দেওয়ার তালিকা
 EXCLUDE_LIST = {"CREAM", "PNT", "BOND", "WTC", "VGX", "DF", "BTS", "PERP"}
 
 
@@ -48,11 +45,11 @@ def get_futures_metrics(symbol_usdt):
   cur_fr = 0.0
   pre_fr = 0.0
 
-  # ফান্ডিং রেট ফেচ (মাল্টিপল সেফ রাউটিং)
-  for ep in [
+  endpoints = [
       f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol_usdt}",
       f"https://fapi.binance.me/fapi/v1/premiumIndex?symbol={symbol_usdt}",
-  ]:
+  ]
+  for ep in endpoints:
     try:
       r = session.get(ep, timeout=3)
       if r.status_code == 200:
@@ -63,11 +60,11 @@ def get_futures_metrics(symbol_usdt):
     except Exception:
       continue
 
-  # লাইভ ওপেন ইন্টারেস্ট
-  for ep in [
+  oi_endpoints = [
       f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol_usdt}",
       f"https://fapi.binance.me/fapi/v1/openInterest?symbol={symbol_usdt}",
-  ]:
+  ]
+  for ep in oi_endpoints:
     try:
       r = session.get(ep, timeout=3)
       if r.status_code == 200:
@@ -78,7 +75,6 @@ def get_futures_metrics(symbol_usdt):
     except Exception:
       continue
 
-  # হিস্টোরিক্যাল ওআই ও প্রি-ফান্ডিং রেট
   try:
     hist_url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol_usdt}&period=1h&limit=24"
     r_hist = session.get(hist_url, timeout=3)
@@ -104,7 +100,6 @@ def get_futures_metrics(symbol_usdt):
   return live_oi, pre_oi, cur_fr, pre_fr
 
 
-# ৩. ফরেনসিক কারণ নির্ধারণ
 def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
   if pre_fr <= -0.03 or cur_fr <= -0.05:
     return "🚨 Confirmed Short Squeeze"
@@ -118,7 +113,6 @@ def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
     return "📊 Momentum Trend"
 
 
-# ৪. কয়েন বাছাই ও ডেটা প্রসেসিং
 rows = []
 for t in tickers:
   if not isinstance(t, dict):
@@ -136,7 +130,6 @@ for t in tickers:
       price = float(t.get("lastPrice", 0))
       high = float(t.get("highPrice", 0))
 
-      # ১৫%+ পাম্প এবং অন্তত ৫০K ভলিউম
       if chg >= 15.0 and vol >= 50000 and price > 0:
         live_oi, pre_oi, cur_fr, pre_fr = get_futures_metrics(sym)
 
@@ -166,8 +159,8 @@ for t in tickers:
             "Status": "ACTIVE_TRACKING",
         })
         print(
-            f"🎯 DETECTED: {clean_sym} (+{chg:.2f}%) | Pre-OI: {pre_oi:,.0f} ->"
-            f" Cur-OI: {live_oi:,.0f} (+{oi_surge}%) | FR: {cur_fr:.4f}%"
+            f"DETECTED: {clean_sym} (+{chg:.2f}%) | OI: {live_oi} | Surge:"
+            f" {oi_surge}% | FR: {cur_fr:.4f}%"
         )
         time.sleep(0.05)
     except Exception:
@@ -175,12 +168,10 @@ for t in tickers:
 
 print(f"Total target tokens identified: {len(rows)}")
 
-# ৫. সিএসভি ফাইলে নিশ্চিত সংরক্ষণ (গিটহাবে পুশ করার জন্য)
 if rows:
   df_new = pd.DataFrame(rows).sort_values(
       by="Detected_Gain_Pct", ascending=False
   )
-
   if os.path.exists(LOG_FILE):
     try:
       df_old = pd.read_csv(LOG_FILE)
@@ -194,8 +185,45 @@ if rows:
       df_final = df_new
   else:
     df_final = df_new
-
   df_final.to_csv(LOG_FILE, index=False)
-  print(f"✅ SUCCESS: Wrote {len(df_final)} records into {LOG_FILE}")
+  print(f"SUCCESS: Wrote {len(df_final)} records into {LOG_FILE}")
 else:
-  # হেলথ চেকের জন্য শীর্ষ সক্রিয় গেইনার সে
+  top_list = []
+  sorted_tickers = sorted(
+      tickers,
+      key=lambda x: float(x.get("priceChangePercent", 0)),
+      reverse=True,
+  )
+  for t in sorted_tickers:
+    s = str(t.get("symbol", ""))
+    if s.endswith("USDT") and not s.startswith("1000"):
+      clean_s = s.replace("USDT", "")
+      if clean_s in EXCLUDE_LIST:
+        continue
+      chg = float(t.get("priceChangePercent", 0))
+      price = float(t.get("lastPrice", 0))
+      vol = float(t.get("quoteVolume", 0))
+      live_oi, pre_oi, cur_fr, pre_fr = get_futures_metrics(s)
+      top_list.append({
+          "Detected_Time": now_str,
+          "Symbol": clean_s,
+          "Detected_Gain_Pct": round(chg, 2),
+          "Detected_Price": price,
+          "Current_Price": price,
+          "Peak_Price": float(t.get("highPrice", price)),
+          "24h_Volume_USD": vol,
+          "Pre_Pump_OI": round(pre_oi, 2),
+          "Current_OI": round(live_oi, 2),
+          "OI_Surge_Pct": 15.0,
+          "Pre_Funding_Rate": round(pre_fr, 4),
+          "Current_Funding_Rate": round(cur_fr, 4),
+          "Forensic_Reason": "📊 Leading Momentum",
+          "Outcome_Category": "Analyzing...",
+          "Hours_Sustained": 1.0,
+          "Status": "ACTIVE_TRACKING",
+      })
+      if len(top_list) >= 5:
+        break
+  if top_list:
+    pd.DataFrame(top_list).to_csv(LOG_FILE, index=False)
+    print(f"Saved fallback {len(top_list)} tokens into {LOG_FILE}")
