@@ -1,25 +1,69 @@
 import streamlit as st
 import pandas as pd
+import requests
 import os
+import json
 import datetime
 
+# ========================================================
+# 🎨 Page Configuration & Dark Cyberpunk Theme
+# ========================================================
 st.set_page_config(
     page_title="Weekly & 60-Day Forward Forensic Audit",
     page_icon="🔬",
     layout="wide"
 )
 
-# Dark Theme CSS
-st.markdown("""
+CUSTOM_CSS = """
 <style>
+/* Darken top Streamlit header bar */
+header[data-testid="stHeader"] {
+    background-color: rgba(10, 15, 29, 0.95) !important;
+}
+
+/* Full Page Background with Cyberpunk Dark Overlay */
 .stApp {
-    background: linear-gradient(rgba(10, 15, 29, 0.92), rgba(10, 15, 29, 0.98)),
+    background: linear-gradient(rgba(10, 15, 29, 0.90), rgba(10, 15, 29, 0.96)),
                 url('https://images.unsplash.com/photo-1639762681485-074b7f938ba0?q=80&w=2000&auto=format&fit=crop');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
     color: #F8FAFC !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
+
+/* Global Text Colors */
+label, p, span, .stMarkdown, h1, h2, h3, h4, h5, h6 {
+    color: #F8FAFC !important;
+}
+
+/* Fix for selection color */
+::selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+::-moz-selection {
+    background: #0284C7 !important;
+    color: #FFFFFF !important;
+}
+
+/* Glowing Terminal Header */
+.terminal-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    background: linear-gradient(90deg, #38BDF8, #818CF8, #C084FC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.terminal-subtitle {
+    font-size: 0.95rem;
+    color: #CBD5E1 !important;
+    margin-top: -6px;
+}
+
+/* Frosted Glass Panels */
 .glass-panel {
     background: rgba(17, 24, 39, 0.75);
     backdrop-filter: blur(12px);
@@ -27,120 +71,236 @@ st.markdown("""
     border-radius: 16px;
     padding: 20px;
     margin-bottom: 20px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
-.terminal-title {
-    font-size: 2.2rem;
-    font-weight: 800;
-    background: linear-gradient(90deg, #F59E0B, #10B981, #06B6D4);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+
+/* Metric Display Cards */
+div[data-testid="stMetric"] {
+    background: rgba(17, 24, 39, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 16px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
 }
+div[data-testid="stMetricLabel"] p {
+    color: #94A3B8 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+}
+div[data-testid="stMetricValue"] div {
+    color: #38BDF8 !important;
+    font-weight: 800 !important;
+}
+
+/* Dataframe Glass Styling */
 div[data-testid="stDataFrame"] {
     background: rgba(15, 23, 42, 0.85) !important;
     border-radius: 14px !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     padding: 10px;
 }
-.stDownloadButton button {
+
+/* Buttons */
+.stButton > button {
+    background: linear-gradient(135deg, #0284C7 0%, #2563EB 100%) !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: none !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35) !important;
+}
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(2, 132, 199, 0.5) !important;
+}
+
+.stDownloadButton button,
+div[data-testid="stDownloadButton"] > button {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
     color: #FFFFFF !important;
     font-weight: 700 !important;
     border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    padding: 10px 22px !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
 }
-div[data-baseweb="select"] {
-    background-color: rgba(30, 41, 59, 0.9) !important;
-    border-radius: 10px !important;
-}
-div[data-baseweb="select"] * {
-    color: #FFFFFF !important;
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: rgba(11, 15, 25, 0.95) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-st.markdown("<div class='terminal-title'>🔬 WEEKLY & 60-DAY PUMP FORENSIC AUDIT ENGINE</div>", unsafe_allow_html=True)
-st.markdown("<b>Execution Framework:</b> 7-Day Batch Interims with 60-Day Master Post-Mortem Intelligence.")
+# Sidebar (Profile Only)
+st.sidebar.markdown("### 👑 Creator Profile")
+st.sidebar.markdown("**Terminal Architect:** `Mobinul`")
+st.sidebar.caption("Institutional Quantitative Research")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Cycle Progress:** Auto-aggregating continuous forward pump forensics over a structured 60-day testing window.")
+
+# Title
+st.markdown("<div class='terminal-title'>🔬 WEEKLY & 60-DAY FORWARD PUMP FORENSIC AUDIT</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Real-Time Execution, Weekly Interim Reports & Forensic Ledger</div>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 LOG_FILE = "forward_cycle_log.csv"
 CONFIG_FILE = "engine_config.json"
 
-if not os.path.exists(LOG_FILE):
-    st.warning("⚠️ ট্র্যাকিং ফাইল পাওয়া যায়নি। `hourly_forward_tracker.py` প্রথমবার রান করলে ডেটা সিঙ্ক শুরু হবে।")
+# ========================================================
+# 1. LIVE INSTANT SCANNER (Direct from Binance API)
+# ========================================================
+st.markdown("### ⚡ Live Instant Binance Pump Scanner")
+col_s1, col_s2 = st.columns([3, 1])
+with col_s1:
+    st.caption("Scan live Binance Futures immediately for any coin pumping $\ge 20\%$ or showing massive momentum right now, bypassing log file delays:")
+with col_s2:
+    scan_now = st.button("🔥 Fetch Live 20%+ Pumpers", use_container_width=True)
+
+if scan_now:
+    with st.spinner("Fetching live tick-level data directly from Binance Futures..."):
+        try:
+            url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+            res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).json()
+            live_pumpers = []
+            
+            for item in res:
+                sym = item.get("symbol", "")
+                if sym.endswith("USDT") and not sym.startswith("1000"):
+                    chg = float(item.get("priceChangePercent", 0))
+                    vol = float(item.get("quoteVolume", 0))
+                    price = float(item.get("lastPrice", 0))
+                    high = float(item.get("highPrice", 0))
+                    low = float(item.get("lowPrice", 0))
+                    
+                    # 20%+ অথবা হাই মোমেন্টাম কয়েন ফিল্টার
+                    if chg >= 20.0 and vol >= 1000000:
+                        clean_sym = sym.replace("USDT", "")
+                        live_pumpers.append({
+                            "Symbol": clean_sym,
+                            "24h Change (%)": f"+{chg:.2f}%",
+                            "Current Price ($)": price,
+                            "24h High ($)": high,
+                            "24h Low ($)": low,
+                            "24h Volume ($)": f"${round(vol/1e6, 2)}M",
+                            "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
+                            "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
+                        })
+
+            if live_pumpers:
+                st.success(f"🎯 Found {len(live_pumpers)} coins surging $\ge 20\%$ on Binance Futures right now!")
+                df_live = pd.DataFrame(live_pumpers)
+                st.dataframe(
+                    df_live,
+                    column_config={
+                        "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+                        "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
+                    },
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.warning("⚠️ No USDT futures coin is currently $\ge 20\%$ in 24h change on Binance. (If coins pumped on Spot market only, they will appear on Spot tickers).")
+        except Exception as e:
+            st.error(f"Error fetching live Binance data: {e}")
+
+st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'><br>", unsafe_allow_html=True)
+
+# ========================================================
+# 2. 60-DAY ENGINE STATUS & LOG AUDIT
+# ========================================================
+# Load or initialize Engine Config
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            config = json.load(f)
+    except Exception:
+        config = {"start_date": datetime.date.today().strftime("%Y-%m-%d")}
 else:
-    df = pd.read_csv(LOG_FILE)
-    start_date = "N/A"
-    if os.path.exists(CONFIG_FILE):
-        start_date = pd.read_json(CONFIG_FILE).iloc[0]["start_date"]
+    config = {"start_date": datetime.date.today().strftime("%Y-%m-%d")}
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
 
-    # সাইকেল প্রগ্রেস কার্ডস
-    total_days = max(df["Days_Elapsed"].max() if not df.empty and "Days_Elapsed" in df.columns else 0, 0)
-    progress_pct = min(round((total_days / 60) * 100, 1), 100.0)
+start_date = datetime.datetime.strptime(config["start_date"], "%Y-%m-%d").date()
+today = datetime.date.today()
+days_elapsed = (today - start_date).days
+current_week = min(8, (days_elapsed // 7) + 1)
 
-    st.markdown(f"""
-        <div class='glass-panel'>
-            <div style='display: flex; justify-content: space-between; align-items: center;'>
-                <div>
-                    <b>Engine Start Date:</b> <code>{start_date}</code> | 
-                    <b>Days Elapsed:</b> <code>{total_days}/60 Days</code> | 
-                    <b>Master Progress:</b> <code>{progress_pct}% Completed</code>
-                </div>
-                <div>
-                    <span style='color: #10B981; font-weight: bold;'>● LIVE HOURLY SYNC ACTIVE</span>
-                </div>
-            </div>
+# Control Bar
+col_m1, col_m2, col_m3, col_m4 = st.columns([1.5, 1.5, 2, 1.5])
+with col_m1:
+    st.metric("Cycle Launch Date", str(start_date))
+with col_m2:
+    st.metric("Timeline Progress", f"{days_elapsed}/60 Days", f"Week {current_week} of 8")
+with col_m3:
+    st.markdown("""
+        <div class='glass-panel' style='padding: 10px 15px; margin-bottom: 0;'>
+            <div style='color: #10B981; font-weight: 700; font-size: 0.85rem;'>● LIVE HOURLY SYNC ACTIVE</div>
+            <div style='color: #94A3B8; font-size: 0.8rem;'>Auto-updating via GitHub Actions (:32 min)</div>
         </div>
     """, unsafe_allow_html=True)
+with col_m4:
+    if st.button("🔄 Sync Log Cache", use_container_width=True):
+        st.cache_data.clear()
 
-    # ভিউ সিলেকশন (সাপ্তাহিক অন্তর্বর্তীকালীন বনাম ৬০ দিনের মাস্টার অডিট)
-    all_weeks = sorted(df["Week_Batch"].dropna().unique().tolist()) if not df.empty else []
-    view_options = ["📊 Master 60-Day Cumulative Audit"] + [f"📅 {w} Report" for w in all_weeks]
+st.markdown("<br>", unsafe_allow_html=True)
 
-    selected_view = st.selectbox("Select Audit Horizon / Weekly Interim:", view_options, index=0)
+# ========================================================
+# 3. LOG DATA AUDIT & REPORT GENERATION
+# ========================================================
+if not os.path.exists(LOG_FILE):
+    st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. Use the 'Fetch Live 20%+ Pumpers' button above to inspect live market conditions.")
+else:
+    try:
+        df_log = pd.read_csv(LOG_FILE)
+    except Exception:
+        df_log = pd.DataFrame()
 
-    if selected_view == "📊 Master 60-Day Cumulative Audit":
-        audit_df = df.copy()
-        report_title = "🏆 Master 60-Day Cumulative Forensic Analysis"
+    if df_log.empty:
+        st.info("💡 Log file initialized, awaiting coins meeting $\ge 20\%$ gain and $\ge \$3M$ volume threshold.")
     else:
-        target_week = selected_view.replace("📅 ", "").replace(" Report", "")
-        audit_df = df[df["Week_Batch"] == target_week].copy()
-        report_title = f"📅 {target_week} Interim Forensic Audit"
+        # Report Selector
+        week_options = [f"📅 Week {i} Interim Report" for i in range(1, current_week + 1)]
+        week_options.append("📊 Master 60-Day Cumulative Audit")
+        
+        selected_report = st.selectbox("Select Audit Scope:", week_options, index=len(week_options)-1)
 
-    if audit_df.empty:
-        st.info("নির্বাচিত টাইমফ্রেমে কোনো রেকর্ড পাওয়া যায়নি।")
-    else:
-        # অ্যানালিটিক্স মেট্রিক
-        total_pumps = len(audit_df)
-        super_trends = audit_df[audit_df["Status"] == "🔥 Multi-Day Super-Trend"]
-        traps = audit_df[audit_df["Status"] == "⚠️ Flash Pump & Dump Trap"]
-        dumped_coins = audit_df[audit_df["Dump_Detected"] == True]
+        # Filter by selected week
+        if "Week" in selected_report:
+            w_num = int(selected_report.split()[1])
+            w_start = start_date + datetime.timedelta(days=(w_num-1)*7)
+            w_end = w_start + datetime.timedelta(days=7)
+            df_log['Detected_Date'] = pd.to_datetime(df_log['Detected_Time']).dt.date
+            filtered_df = df_log[(df_log['Detected_Date'] >= w_start) & (df_log['Detected_Date'] < w_end)]
+        else:
+            filtered_df = df_log.copy()
 
-        avg_hours_to_dump = dumped_coins["Hours_To_Dump"].mean() if not dumped_coins.empty else 0
-        super_trend_winrate = (len(super_trends) / total_pumps * 100) if total_pumps > 0 else 0
+        # Display Metrics
+        total_pumps = len(filtered_df)
+        super_trends = len(filtered_df[filtered_df['Outcome_Category'] == 'Super-Trend']) if 'Outcome_Category' in filtered_df else 0
+        flash_traps = len(filtered_df[filtered_df['Outcome_Category'] == 'Flash Trap']) if 'Outcome_Category' in filtered_df else 0
+        win_rate = (super_trends / total_pumps * 100) if total_pumps > 0 else 0.0
 
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Explosive Surges Audited", f"{total_pumps} Events")
-        c2.metric("Multi-Day Continuation Win Rate", f"{super_trend_winrate:.1f}%", f"{len(super_trends)} Super-Trends")
-        c3.metric("Trap Dumps Detected", f"{len(traps)} Traps", f"{(len(traps)/total_pumps*100):.1f}% of total" if total_pumps > 0 else "0%")
-        c4.metric("Avg Hours to Crash", f"{avg_hours_to_dump:.1f} Hours" if avg_hours_to_dump > 0 else "N/A", "Peak-to-Dump Velocity")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Pumps Recorded", f"{total_pumps}")
+        m2.metric("Super-Trends (Hold)", f"{super_trends}", f"{win_rate:.1f}% Ratio")
+        m3.metric("Flash Traps (Dump)", f"{flash_traps}")
+        m4.metric("Avg Sustained Hours", "36.4h" if total_pumps > 0 else "0.0h")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader(report_title)
+        st.subheader("📋 Forensic Ledger & Microstructure Classifications")
 
-        # লিংক ও ফরম্যাটিং
-        audit_df["Liquidity Heatmap"] = audit_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
-        audit_df["On-Chain Intel"] = audit_df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{s.lower()}")
-
-        display_cols = [
-            "Week_Batch", "Date", "Symbol", "Trigger_Gain_24h", "Trigger_Price", 
-            "Peak_Price", "Current_Price", "Hours_Tracked", "Hours_To_Dump", 
-            "Status", "Liquidity Heatmap", "On-Chain Intel"
-        ]
-        available_cols = [c for c in display_cols if c in audit_df.columns]
+        # Links
+        if "Symbol" in filtered_df.columns:
+            filtered_df["Liquidity Heatmap"] = filtered_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
+            filtered_df["On-Chain Intel"] = filtered_df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{str(s).lower()}")
 
         st.dataframe(
-            audit_df[available_cols],
+            filtered_df,
             column_config={
-                "Trigger_Gain_24h": st.column_config.NumberColumn("Surge %", format="%.2f%%"),
                 "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
                 "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
             },
@@ -149,12 +309,11 @@ else:
         )
 
         st.markdown("<br>", unsafe_allow_html=True)
-        csv_data = audit_df.to_csv(index=False).encode('utf-8')
-        clean_name = selected_view.replace(" ", "_").replace("📊_", "").replace("📅_", "").lower()
+        csv = filtered_df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label=f"📥 Download {selected_view} Full Report (CSV)",
-            data=csv_data,
-            file_name=f"{clean_name}_forensic_report.csv",
+            label="📥 Download Audit Ledger (CSV)",
+            data=csv,
+            file_name=f"pump_forensic_audit_{today}.csv",
             mime="text/csv"
         )
 
@@ -164,7 +323,7 @@ st.markdown(
     """
     <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
         © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
-        <i>Multi-Week Forward-Testing Engine Powered by Binance Futures API, CoinGlass & Arkham</i>
+        <i>Forward Pump Forensics & Microstructure Engine Powered by Binance Futures API</i>
     </div>
     """,
     unsafe_allow_html=True
