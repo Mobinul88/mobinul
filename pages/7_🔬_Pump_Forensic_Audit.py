@@ -109,7 +109,9 @@ st.markdown("<br>", unsafe_allow_html=True)
 LOG_FILE = "forward_cycle_log.csv"
 CONFIG_FILE = "engine_config.json"
 
-# 1. LIVE INSTANT SCANNER
+# ========================================================
+# 1. LIVE INSTANT SCANNER (Protected with Multi-Endpoint Fallback)
+# ========================================================
 st.markdown("### ⚡ Live Instant Binance Pump Scanner")
 col_s1, col_s2 = st.columns([3, 1])
 with col_s1:
@@ -118,40 +120,67 @@ with col_s2:
     scan_now = st.button("🔥 Fetch Live 20%+ Pumpers", use_container_width=True)
 
 if scan_now:
-    with st.spinner("Fetching live tick data from Binance Futures..."):
-        try:
-            url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
-            res = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10).json()
+    with st.spinner("Fetching live tick data from Binance..."):
+        endpoints = [
+            "https://fapi.binance.com/fapi/v1/ticker/24hr",
+            "https://api.binance.com/api/v3/ticker/24hr"
+        ]
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        
+        data_list = []
+        for url in endpoints:
+            try:
+                resp = requests.get(url, headers=headers, timeout=8)
+                if resp.status_code == 200:
+                    parsed = resp.json()
+                    if isinstance(parsed, list) and len(parsed) > 0:
+                        data_list = parsed
+                        break
+            except Exception:
+                continue
+
+        if not data_list:
+            st.error("⚠️ Binance API currently rate-limited from Streamlit Cloud IP. Please retry in a moment.")
+        else:
             live_pumpers = []
-            
-            for item in res:
+            for item in data_list:
+                if not isinstance(item, dict):
+                    continue
+                
                 sym = str(item.get("symbol", ""))
                 if sym.endswith("USDT") and not sym.startswith("1000"):
-                    chg = float(item.get("priceChangePercent", 0))
-                    vol = float(item.get("quoteVolume", 0))
-                    price = float(item.get("lastPrice", 0))
-                    high = float(item.get("highPrice", 0))
-                    low = float(item.get("lowPrice", 0))
-                    
-                    if chg >= 20.0 and vol >= 1000000:
-                        clean_sym = sym.replace("USDT", "")
-                        live_pumpers.append({
-                            "Symbol": clean_sym,
-                            "24h Change (%)": f"+{chg:.2f}%",
-                            "Current Price ($)": price,
-                            "24h High ($)": high,
-                            "24h Low ($)": low,
-                            "24h Volume ($)": f"${round(vol/1e6, 2)}M",
-                            "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
-                            "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
-                        })
+                    try:
+                        chg = float(item.get("priceChangePercent", 0))
+                        vol = float(item.get("quoteVolume", 0))
+                        price = float(item.get("lastPrice", 0))
+                        high = float(item.get("highPrice", 0))
+                        low = float(item.get("lowPrice", 0))
+
+                        # ২০%+ পাম্পিং ফিল্টার
+                        if chg >= 20.0 and vol >= 500000:
+                            clean_sym = sym.replace("USDT", "")
+                            live_pumpers.append({
+                                "Symbol": clean_sym,
+                                "24h Gain (%)": f"+{chg:.2f}%",
+                                "Price ($)": price,
+                                "24h High ($)": high,
+                                "24h Low ($)": low,
+                                "24h Volume ($)": f"${round(vol/1e6, 2)}M",
+                                "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
+                                "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
+                            })
+                    except Exception:
+                        continue
 
             if live_pumpers:
-                st.success(f"🎯 Found {len(live_pumpers)} coins surging >= 20% on Binance Futures right now!")
+                st.success(f"🎯 Found {len(live_pumpers)} coins surging >= 20% on Binance right now!")
                 df_live = pd.DataFrame(live_pumpers)
                 st.dataframe(
                     df_live,
                     column_config={
+                        "Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.4f"),
+                        "24h High ($)": st.column_config.NumberColumn("24h High ($)", format="$%.4f"),
+                        "24h Low ($)": st.column_config.NumberColumn("24h Low ($)", format="$%.4f"),
                         "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
                         "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
                     },
@@ -159,13 +188,13 @@ if scan_now:
                     hide_index=True
                 )
             else:
-                st.warning("⚠️ No USDT futures coin is currently >= 20% in 24h change on Binance.")
-        except Exception as e:
-            st.error(f"Error fetching live Binance data: {e}")
+                st.warning("⚠️ No USDT pair is currently >= 20% in 24h change on Binance right now.")
 
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'><br>", unsafe_allow_html=True)
 
+# ========================================================
 # 2. 60-DAY ENGINE STATUS
+# ========================================================
 today_date = date.today()
 config = {}
 if os.path.exists(CONFIG_FILE):
@@ -210,7 +239,9 @@ with col_m4:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 3. LOG DATA AUDIT
+# ========================================================
+# 3. LOG DATA AUDIT & REPORT
+# ========================================================
 if not os.path.exists(LOG_FILE):
     st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. Use the 'Fetch Live 20%+ Pumpers' button above to inspect live market conditions.")
 else:
@@ -281,6 +312,6 @@ st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe
 st.markdown("""
 <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
     © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
-    <i>Forward Pump Forensics & Microstructure Engine Powered by Binance Futures API</i>
+    <i>Forward Pump Forensics & Microstructure Engine Powered by Binance API</i>
 </div>
 """, unsafe_allow_html=True)
