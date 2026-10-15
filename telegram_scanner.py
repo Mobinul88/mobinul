@@ -1,29 +1,28 @@
-import time
 import requests
 import pandas as pd
-import numpy as np
-from datetime import datetime
+import datetime
+import os
+import time
 
 # ========================================================
-# টেলিগ্রাম কনফিগারেশন
+# 🤖 TELEGRAM BOT CREDENTIALS
 # ========================================================
-TELEGRAM_BOT_TOKEN = "8968950600:AAEF8nDDEYMYmDQQe59Yoi70dqWuKQZTL0k"
-TELEGRAM_CHAT_ID = "8605377336"
+# আপনার টেলিগ্রাম বট টোকেন এবং চ্যাট আইডি দিন (অথবা এনভায়রনমেন্ট ভ্যারিয়েবল ব্যবহার করুন)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "YOUR_CHAT_ID_HERE")
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
-
-EXCLUDE_SYMBOLS = [
-    "USDCUSDT", "PAXGUSDT", "BTCDOMUSDT", "EURUSDT", 
-    "GBPUSDT", "FDUSDUSDT", "TUSDUSDT", "BUSDUSDT"
-]
-
+LOG_FILE = "telegram_signals_log.csv"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 session = requests.Session()
 session.headers.update(HEADERS)
 
-def send_telegram_message(message):
-    """টেলিগ্রামে এইচটিএমএল ফরম্যাটে মেসেজ পাঠায়"""
+def send_telegram_alert(message):
+    """টেলিগ্রামে সিগন্যাল মেসেজ পাঠানোর ফাংশন"""
+    if TELEGRAM_BOT_TOKEN == "YOUR_BOT_TOKEN_HERE" or not TELEGRAM_BOT_TOKEN:
+        print("⚠️ Telegram credentials not configured. Message preview:")
+        print(message)
+        return False
+        
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_CHAT_ID,
@@ -32,184 +31,102 @@ def send_telegram_message(message):
         "disable_web_page_preview": True
     }
     try:
-        res = session.post(url, json=payload, timeout=8)
-        print("Telegram Status Code:", res.status_code)
-        if res.status_code == 200:
-            print("✅ Telegram notification sent successfully!")
-        else:
-            print("Telegram Error Response:", res.text)
+        r = session.post(url, json=payload, timeout=8)
+        return r.status_code == 200
     except Exception as e:
-        print(f"Telegram Exception: {e}")
+        print(f"Telegram Send Error: {e}")
+        return False
 
-def get_binance_futures_symbols():
-    """বাইনান্সের সক্রিয় পেয়ার সংগ্রহ"""
-    url = "https://data-api.binance.vision/api/v3/exchangeInfo"
-    try:
-        res = session.get(url, timeout=8).json()
-        symbols = [
-            s['symbol'] for s in res.get('symbols', [])
-            if s.get('status') == 'TRADING' and s['symbol'].endswith('USDT') and s['symbol'] not in EXCLUDE_SYMBOLS
-        ]
-        if len(symbols) >= 50:
-            symbols = sorted(list(set(symbols)))
-            print(f"✅ বাইনান্স থেকে মোট সক্রিয় পেয়ার পাওয়া গেছে: {len(symbols)} টি")
-            return symbols
-    except Exception as e:
-        print(f"Fetch Warning: {e}")
-
-    return [
-        "BTCUSDT", "ETHUSDT", "SOLUSDT", "TRXUSDT", "DOGEUSDT", "BNBUSDT", 
-        "XRPUSDT", "ADAUSDT", "AVAXUSDT", "SUIUSDT", "NEARUSDT", "LINKUSDT", 
-        "APTUSDT", "PEPEUSDT", "WIFUSDT", "FETUSDT", "RENDERUSDT", "BATUSDT"
-    ]
-
-def get_binance_klines_fast(symbol, interval="1d", limit=60):
-    """বাইনান্স দ্রুতগতির ক্যান্ডেলস্টিক ফেচিং"""
-    url = f"https://data-api.binance.vision/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
-    try:
-        res = session.get(url, timeout=2.5).json()
-        if isinstance(res, list) and len(res) >= 20:
-            df = pd.DataFrame(res, columns=[
-                "open_time", "open", "high", "low", "close", "volume",
-                "close_time", "quote_volume", "trades", "taker_base_vol", "taker_quote_vol", "ignore"
-            ])
-            for col in ["open", "high", "low", "close", "volume"]:
-                df[col] = df[col].astype(float)
-            return df
-    except Exception:
-        pass
-    return None
-
-def get_oi_growth(symbol):
-    """বাইনান্স ফিউচার্স ওপেন ইন্টারেস্ট (OI) গ্রোথ - নিরাপদ মেথড"""
-    url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol}&period=4h&limit=7"
-    try:
-        req = session.get(url, timeout=2.0)
-        if req.status_code == 200:
-            data = req.json()
-            if isinstance(data, list) and len(data) >= 2:
-                initial_oi = float(data[0].get("sumOpenInterestValue", 0))
-                current_oi = float(data[-1].get("sumOpenInterestValue", 0))
-                if initial_oi > 0:
-                    return ((current_oi - initial_oi) / initial_oi) * 100
-    except Exception:
-        pass
-    return 0.0
-
-def run_scanner():
-    start_time = time.time()
-    pairs = get_binance_futures_symbols()
-    total_pairs = len(pairs)
+def log_signal_to_csv(symbol, signal_type, entry_price, tp_price, sl_price, volume_usd):
+    """ড্যাশবোর্ডের জন্য প্রতিটি সিগন্যাল লাইভ ফাইলে রেকর্ড করা"""
+    now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    clean_sym = symbol.replace("USDT", "").upper()
     
-    valid_setups = []
-    scanned_count = 0
-
-    print(f">> বাইনান্সের মোট {total_pairs} টি কয়েন লিডিং স্ক্যানার দিয়ে স্ক্যান শুরু হচ্ছে...")
-
-    for sym in pairs:
-        scanned_count += 1
-        if scanned_count % 50 == 0 or scanned_count == total_pairs:
-            print(f"Progress: [{scanned_count}/{total_pairs}] টি সম্পন্ন...")
-
-        # ১. ডেইলি ট্রেন্ড ও SMA চেক
-        df_1d = get_binance_klines_fast(sym, interval="1d", limit=60)
-        if df_1d is None:
-            continue
-
-        df_1d["sma50"] = df_1d["close"].rolling(50, min_periods=20).mean()
-        df_1d["sma200"] = df_1d["close"].rolling(200, min_periods=30).mean()
-
-        d_close = df_1d.iloc[-1]["close"]
-        d_50 = df_1d.iloc[-1]["sma50"]
-        d_200 = df_1d.iloc[-1]["sma200"]
-
-        daily_bullish = False
-        ma_label = ""
-        if (not pd.isna(d_50)) and (d_close >= d_50):
-            daily_bullish = True
-            ma_label = "Daily SMA 50"
-        elif (not pd.isna(d_200)) and (d_close >= d_200):
-            daily_bullish = True
-            ma_label = "Daily SMA 200"
-
-        if not daily_bullish:
-            continue
-
-        # ২. ৩-দিনের কম্প্রেশন চেক (<18%)
-        range_3d = (df_1d["high"].tail(3).max() - df_1d["low"].tail(3).min()) / d_close * 100
-        if range_3d > 18.0:
-            continue
-
-        # ৩. ৪-ঘণ্টার ক্যান্ডেল এবং ভলিউম সার্জ রেশিও (Volume Surge)
-        df_4h = get_binance_klines_fast(sym, interval="4h", limit=30)
-        if df_4h is None:
-            continue
-
-        df_4h["vol_sma"] = df_4h["volume"].rolling(20, min_periods=5).mean()
-        last_4h = df_4h.iloc[-1]
-        
-        avg_vol = last_4h["vol_sma"]
-        current_vol = last_4h["volume"]
-        vol_surge_ratio = (current_vol / avg_vol) if avg_vol > 0 else 1.0
-
-        is_green = last_4h["close"] >= last_4h["open"]
-        has_volume_surge = is_green and (vol_surge_ratio >= 1.3)
-
-        if not has_volume_surge:
-            continue
-
-        # ৪. ওপেন ইন্টারেস্ট গ্রোথ চেক
-        oi_growth_pct = get_oi_growth(sym)
-
-        entry_p = d_close
-        sl_p = entry_p * 0.95
-        tp1_p = entry_p * 1.05
-        tp2_p = entry_p * 1.10
-
-        valid_setups.append({
-            "symbol": sym,
-            "price": entry_p,
-            "ma_type": ma_label,
-            "range_3d": range_3d,
-            "vol_surge": vol_surge_ratio,
-            "oi_growth": oi_growth_pct,
-            "sl": sl_p,
-            "tp1": tp1_p,
-            "tp2": tp2_p
-        })
-
-    elapsed = int(time.time() - start_time)
-    today_date = datetime.utcnow().strftime("%Y-%m-%d")
-
-    # টেলিগ্রামে রিপোর্ট পাঠানো
-    if valid_setups:
-        msg = f"🔥 <b>INSTITUTIONAL LEADING BREAKOUT ALERT</b>\n"
-        msg += f"📅 তারিখ: <code>{today_date}</code> (High Probability Entry)\n"
-        msg += f"🔍 মোট স্ক্যান করা পেয়ার: <b>{total_pairs} টি</b>\n"
-        msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n"
-        msg += f"🎯 কোয়ালিফাই করেছে: <b>{len(valid_setups)} টি</b>\n\n"
-
-        for coin in valid_setups:
-            msg += f"💎 <b>#{coin['symbol']}</b>\n"
-            msg += f"• সাপোর্ট স্ট্রাকচার: <code>{coin['ma_type']}</code>\n"
-            msg += f"• এন্ট্রি রেট: <code>{coin['price']:.4f}</code>\n"
-            msg += f"• ৩-দিনের রেঞ্জ: <code>{coin['range_3d']:.2f}% (Compressed)</code>\n"
-            msg += f"• 🚀 <b>ভলিউম স্পাইক:</b> <code>{coin['vol_surge']:.2f}x (Surge)</code>\n"
-            if coin['oi_growth'] != 0.0:
-                msg += f"• 📈 <b>OI গ্রোথ (24h):</b> <code>{coin['oi_growth']:+.2f}%</code>\n"
-            msg += f"🛑 স্টপ-লস: <code>{coin['sl']:.4f} (-5.0%)</code>\n"
-            msg += f"🎯 TP 1: <code>{coin['tp1']:.4f} (+5.0%)</code>\n"
-            msg += f"🚀 TP 2: <code>{coin['tp2']:.4f} (+10.0%)</code>\n"
-            msg += "----------------------------\n"
-        send_telegram_message(msg)
+    new_entry = {
+        "Signal_Time": now_str,
+        "Symbol": clean_sym,
+        "Signal_Type": signal_type.upper(),
+        "Entry_Price": float(entry_price),
+        "Take_Profit": float(tp_price),
+        "Stop_Loss": float(sl_price),
+        "Inflow_Volume_USD": float(volume_usd),
+        "Status": "OPEN"
+    }
+    
+    df_new = pd.DataFrame([new_entry])
+    if os.path.exists(LOG_FILE):
+        try:
+            df_old = pd.read_csv(LOG_FILE)
+            df_updated = pd.concat([df_old, df_new], ignore_index=True)
+            df_updated.to_csv(LOG_FILE, index=False)
+        except Exception:
+            df_new.to_csv(LOG_FILE, index=False)
     else:
-        msg = f"🏛️ <b>BINANCE INSTITUTIONAL SCAN REPORT</b>\n"
-        msg += f"📅 তারিখ: <code>{today_date}</code> (Day Close Review)\n"
-        msg += f"🔍 মোট স্ক্যান করা বাইনান্স পেয়ার: <b>{total_pairs} টি</b>\n"
-        msg += f"⏱️ সময় লেগেছে: <b>{elapsed} সেকেন্ড</b>\n\n"
-        msg += "🛡️ <b>ফলাফল: কোনো কয়েনে লিডিং স্পাইক মেলেনি।</b>\n"
-        msg += "💡 <i>কোনো কয়েনে একসাথে নিরাপদ SMA সাপোর্ট, কম্প্রেশন এবং ভলিউম স্পাইক (≥1.3x) কনফার্মেশন পাওয়া যায়নি। ক্যাপিটাল সুরক্ষিত রাখুন।</i>"
-        send_telegram_message(msg)
+        df_new.to_csv(LOG_FILE, index=False)
+    print(f"✅ Logged to {LOG_FILE}: {clean_sym} ({signal_type}) Entry: {entry_price}")
+
+def scan_binance_market():
+    """বাইনান্স ফিউচার্স থেকে সিগন্যাল খুঁজে বের করা ও ফায়ার করা"""
+    print(f"[{datetime.datetime.now()}] Scanning Binance Futures for High-Probability Setups...")
+    url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+    try:
+        res = session.get(url, timeout=10).json()
+        if not isinstance(res, list):
+            return
+    except Exception as e:
+        print(f"Market fetch error: {e}")
+        return
+
+    # ইতিমধ্যে যে কয়েনগুলোতে আজকে সিগন্যাল গেছে সেগুলোর তালিকা যাতে একই কয়েনে বারবার সিগন্যাল না যায়
+    logged_today = []
+    if os.path.exists(LOG_FILE):
+        try:
+            df_log = pd.read_csv(LOG_FILE)
+            today_str = datetime.date.today().strftime("%Y-%m-%d")
+            logged_today = df_log[df_log["Signal_Time"].str.contains(today_str, na=False)]["Symbol"].tolist()
+        except Exception:
+            pass
+
+    for item in res:
+        symbol = item.get("symbol", "")
+        if not symbol.endswith("USDT") or symbol.startswith("1000"):
+            continue
+
+        clean_sym = symbol.replace("USDT", "")
+        if clean_sym in logged_today:
+            continue
+
+        price = float(item.get("lastPrice", 0))
+        pct_change = float(item.get("priceChangePercent", 0))
+        vol_usd = float(item.get("quoteVolume", 0))
+
+        # সিগন্যাল অ্যালগরিদম ক্রাইটেরিয়া:
+        # বুলিশ ব্রেকআউট (LONG): ভলিউম >= $15M এবং ২৪ ঘণ্টায় ৭% থেকে ১৮% এর মধ্যে মোমেন্টাম শুরু
+        if pct_change >= 7.0 and vol_usd >= 15000000 and price > 0:
+            signal_type = "LONG"
+            entry_price = price
+            tp_price = round(entry_price * 1.08, 6)   # +8% Target (TP)
+            sl_price = round(entry_price * 0.96, 6)   # -4% Stop Loss (1:2 Risk/Reward)
+
+            msg = (
+                f"🚨 <b>MOBINUL QUANT SIGNAL ALERT</b> 🚨\n\n"
+                f"💎 <b>Coin:</b> #{clean_sym}USDT\n"
+                f"⚡ <b>Action:</b> {signal_type} 🟢\n"
+                f"🎯 <b>Entry Price:</b> ${entry_price}\n"
+                f"🏆 <b>Take Profit (TP):</b> ${tp_price} (+8.0%)\n"
+                f"🛑 <b>Stop Loss (SL):</b> ${sl_price} (-4.0%)\n"
+                f"📊 <b>24h Inflow Vol:</b> ${round(vol_usd/1e6, 2)}M\n\n"
+                f"🔥 <a href='https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT'>View Liquidity Heatmap</a> | "
+                f"<a href='https://arkm.com/explorer/token/{clean_sym.lower()}'>Arkham Intel</a>"
+            )
+
+            # ১. টেলিগ্রামে পাঠানো
+            send_telegram_alert(msg)
+
+            # ২. ফাইলে স্বয়ংক্রিয়ভাবে লগ করা
+            log_signal_to_csv(clean_sym, signal_type, entry_price, tp_price, sl_price, vol_usd)
+            logged_today.append(clean_sym)
+            time.sleep(1)
 
 if __name__ == "__main__":
-    run_scanner()
+    scan_binance_market()
