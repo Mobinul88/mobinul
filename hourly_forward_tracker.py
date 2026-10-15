@@ -2,48 +2,54 @@ import requests
 import pandas as pd
 import datetime
 import os
-import sys
+import time
 
 LOG_FILE = "forward_cycle_log.csv"
 now = datetime.datetime.now()
 now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 print(f"[{now_str}] Starting Binance Futures Forward Pump Forensic Scan...")
 
-url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
-try:
-    resp = requests.get(url, headers=headers, timeout=15)
-    tickers = resp.json()
-except Exception as e:
-    print(f"API Error: {e}")
-    sys.exit(1)
+# এপিআই থেকে টিকার সংগ্রহ
+tickers = []
+endpoints = [
+    "https://fapi.binance.com/fapi/v1/ticker/24hr",
+    "https://data-api.binance.vision/api/v3/ticker/24hr"
+]
 
-if not isinstance(tickers, list) or len(tickers) == 0:
-    print(f"Failed to fetch tickers. Response: {tickers}")
-    sys.exit(1)
+for ep in endpoints:
+    try:
+        r = requests.get(ep, headers=headers, timeout=12)
+        if r.status_code == 200:
+            data = r.json()
+            if isinstance(data, list) and len(data) > 0:
+                tickers = data
+                print(f"Success fetching from: {ep}")
+                break
+    except Exception as e:
+        print(f"Failed {ep}: {e}")
 
-print(f"Total tickers fetched: {len(tickers)}")
+if not tickers:
+    print("Warning: Could not fetch tickers from endpoints.")
 
-# Funding rate & Open interest আনার ফাংশন
 def get_metrics(sym):
     fr = 0.0
     oi = 0.0
     try:
-        r_fr = requests.get(f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={sym}", headers=headers, timeout=5).json()
+        r_fr = requests.get(f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={sym}", headers=headers, timeout=4).json()
         fr = float(r_fr.get("lastFundingRate", 0)) * 100
     except Exception:
         pass
     try:
-        r_oi = requests.get(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={sym}", headers=headers, timeout=5).json()
+        r_oi = requests.get(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={sym}", headers=headers, timeout=4).json()
         oi = float(r_oi.get("openInterest", 0))
     except Exception:
         pass
     return fr, oi
 
-# লজিক ক্লাসিফিকেশন
 def classify_reason(chg, fr, vol):
     if fr <= -0.05:
         return "🚨 Short Squeeze (Heavy Neg Funding)"
@@ -56,7 +62,9 @@ def classify_reason(chg, fr, vol):
 
 rows = []
 for t in tickers:
-    sym = t.get("symbol", "")
+    if not isinstance(t, dict):
+        continue
+    sym = str(t.get("symbol", ""))
     if sym.endswith("USDT") and not sym.startswith("1000"):
         try:
             chg = float(t.get("priceChangePercent", 0))
@@ -65,7 +73,7 @@ for t in tickers:
             high = float(t.get("highPrice", 0))
 
             # ১৫%+ গেইন ও ৫০K ভলিউম
-            if chg >= 15.0 and vol >= 50000:
+            if chg >= 15.0 and vol >= 50000 and price > 0:
                 clean_sym = sym.replace("USDT", "")
                 fr, oi = get_metrics(sym)
                 reason = classify_reason(chg, fr, vol)
@@ -85,7 +93,7 @@ for t in tickers:
                     "Hours_Sustained": 1.0,
                     "Status": "ACTIVE_TRACKING"
                 })
-                print(f"-> Captured: {clean_sym} (+{chg:.2f}%) | Vol: ${round(vol/1e6, 2)}M | Reason: {reason}")
+                print(f"-> Captured: {clean_sym} (+{chg:.2f}%)")
         except Exception:
             continue
 
@@ -94,7 +102,6 @@ print(f"Total target coins identified: {len(rows)}")
 if rows:
     df_new = pd.DataFrame(rows).sort_values(by="Detected_Gain_Pct", ascending=False)
     
-    # বিদ্যমান ফাইল থাকলে মার্জ করবে
     if os.path.exists(LOG_FILE):
         try:
             df_old = pd.read_csv(LOG_FILE)
@@ -107,8 +114,7 @@ if rows:
     else:
         df_final = df_new
 
-    # ফাইল রাইট
     df_final.to_csv(LOG_FILE, index=False)
-    print(f"SUCCESS: Successfully saved {len(df_final)} coins into {LOG_FILE}")
+    print(f"SUCCESS: Wrote {len(df_final)} coins into {LOG_FILE}")
 else:
-    print("No coins currently met the criteria.")
+    print("No coins met the criteria in this cycle.")
