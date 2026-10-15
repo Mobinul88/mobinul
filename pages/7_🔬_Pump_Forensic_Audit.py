@@ -111,107 +111,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 LOG_FILE = "forward_cycle_log.csv"
 CONFIG_FILE = "engine_config.json"
+GITHUB_RAW_LOG = "https://raw.githubusercontent.com/Mobinul88/mobinul/main/forward_cycle_log.csv"
 
 # ========================================================
-# 1. LIVE INSTANT SCANNER (Direct Multi-Gateway Binance Futures)
-# ========================================================
-st.markdown("### ⚡ Live Instant Binance Futures Pump Scanner")
-col_s1, col_s2 = st.columns([3, 1])
-with col_s1:
-    st.caption("Inspect live Binance Futures ranking sorted by 24h pump with real-time Forensic Logic (Short Squeeze / Institutional Inflow):")
-with col_s2:
-    scan_now = st.button("🔥 Fetch Live 20%+ Pumpers", use_container_width=True)
-
-def fetch_direct_binance_futures():
-    gateways = [
-        "https://fapi.binance.com/fapi/v1/ticker/24hr",
-        "https://api.allorigins.win/raw?url=" + requests.utils.quote("https://fapi.binance.com/fapi/v1/ticker/24hr"),
-        "https://corsproxy.io/?" + requests.utils.quote("https://fapi.binance.com/fapi/v1/ticker/24hr")
-    ]
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    for url in gateways:
-        try:
-            r = requests.get(url, headers=headers, timeout=8)
-            if r.status_code == 200:
-                data = r.json()
-                if isinstance(data, list) and len(data) > 0:
-                    return data
-        except Exception:
-            continue
-    return None
-
-if scan_now:
-    with st.spinner("Analyzing live Binance Futures orderflow & gainers..."):
-        raw_data = fetch_direct_binance_futures()
-        if not raw_data:
-            st.error("⚠️ Connection to Binance Futures temporarily unavailable. Please retry in 5 seconds.")
-        else:
-            live_pumpers = []
-            for item in raw_data:
-                if not isinstance(item, dict):
-                    continue
-                sym = str(item.get("symbol", ""))
-                if sym.endswith("USDT") and not sym.startswith("1000"):
-                    try:
-                        chg = float(item.get("priceChangePercent", 0))
-                        vol = float(item.get("quoteVolume", 0))
-                        price = float(item.get("lastPrice", 0))
-                        high = float(item.get("highPrice", 0))
-                        low = float(item.get("lowPrice", 0))
-
-                        if chg >= 15.0: # ১৫% বা তার বেশি
-                            clean_sym = sym.replace("USDT", "")
-                            
-                            # ইনস্ট্যান্ট লজিক ডিটারমিনেশন
-                            if chg >= 50.0:
-                                reason = "💎 Mega Momentum Super-Trend"
-                            elif vol >= 30000000:
-                                reason = "⚡ Heavy Institutional Inflow"
-                            elif chg >= 20.0 and vol < 10000000:
-                                reason = "🚨 Short Squeeze / Liquidation Pump"
-                            else:
-                                reason = "📊 Steady Bullish Expansion"
-
-                            live_pumpers.append({
-                                "Symbol": clean_sym,
-                                "24h Gain (%)": round(chg, 2),
-                                "Current Price ($)": price,
-                                "24h High ($)": high,
-                                "24h Low ($)": low,
-                                "24h Volume ($)": f"${round(vol/1e6, 2)}M",
-                                "Forensic Reason": reason,
-                                "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
-                                "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
-                            })
-                    except Exception:
-                        continue
-
-            if live_pumpers:
-                df_live = pd.DataFrame(live_pumpers).sort_values(by="24h Gain (%)", ascending=False)
-                st.success(f"🎯 Successfully loaded {len(df_live)} surging coins directly from Binance Futures!")
-                
-                df_live["24h Gain (%)"] = df_live["24h Gain (%)"].apply(lambda x: f"+{x:.2f}%")
-                
-                cols_to_show = ["Symbol", "24h Gain (%)", "Current Price ($)", "24h High ($)", "24h Low ($)", "24h Volume ($)", "Forensic Reason", "Liquidity Heatmap", "On-Chain Intel"]
-                st.dataframe(
-                    df_live[cols_to_show],
-                    column_config={
-                        "Current Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.6f"),
-                        "24h High ($)": st.column_config.NumberColumn("24h High ($)", format="$%.6f"),
-                        "24h Low ($)": st.column_config.NumberColumn("24h Low ($)", format="$%.6f"),
-                        "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                        "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-                    },
-                    use_container_width=True,
-                    hide_index=True
-                )
-            else:
-                st.warning("⚠️ No USDT futures coin is currently >= 15% on Binance.")
-
-st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'><br>", unsafe_allow_html=True)
-
-# ========================================================
-# 2. 60-DAY ENGINE STATUS
+# 1. 60-DAY ENGINE STATUS & CONTROL BAR
 # ========================================================
 today_date = date.today()
 config = {}
@@ -258,79 +161,95 @@ with col_m4:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ========================================================
-# 3. HOURLY FORWARD AUDIT LEDGER (Reason & Classification)
+# 2. LOAD FORWARD LOG DATA (Local File + GitHub Raw Sync Fallback)
 # ========================================================
+@st.cache_data(ttl=60)
+def load_audit_data():
+    # প্রথমে লোকাল ফাইল চেক করবে
+    if os.path.exists(LOG_FILE):
+        try:
+            df = pd.read_csv(LOG_FILE)
+            if not df.empty:
+                return df
+        except Exception:
+            pass
+
+    # লোকাল ফাইলে না থাকলে সরাসরি গিটহাব লাইভ লিংক থেকে ফেচ করবে
+    try:
+        df_git = pd.read_csv(GITHUB_RAW_LOG)
+        if not df_git.empty:
+            df_git.to_csv(LOG_FILE, index=False)
+            return df_git
+    except Exception:
+        pass
+
+    return pd.DataFrame()
+
+df_log = load_audit_data()
+
 st.subheader("📋 Continuous Forward Forensic Ledger & Behavioral Audit")
 
-if not os.path.exists(LOG_FILE):
-    st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. Use the button above to check live conditions right now.")
+if df_log.empty:
+    st.info("💡 Forward log file is awaiting its next hourly cycle data. GitHub Actions is scheduled to commit at :32 min.")
 else:
-    try:
-        df_log = pd.read_csv(LOG_FILE)
-    except Exception:
-        df_log = pd.DataFrame()
+    # সিলেক্টর
+    week_options = [f"📅 Week {i} Interim Report" for i in range(1, current_week + 1)]
+    week_options.append("📊 Master 60-Day Cumulative Audit")
+    selected_report = st.selectbox("Select Audit Scope:", week_options, index=len(week_options)-1)
 
-    if df_log.empty:
-        st.info("💡 Log file initialized, awaiting automated hourly entries from GitHub Actions.")
-    else:
-        # সিলেক্টর
-        week_options = [f"📅 Week {i} Interim Report" for i in range(1, current_week + 1)]
-        week_options.append("📊 Master 60-Day Cumulative Audit")
-        selected_report = st.selectbox("Select Audit Scope:", week_options, index=len(week_options)-1)
-
-        if "Week" in selected_report:
-            try:
-                w_num = int(selected_report.split()[1])
-                w_start = start_date + timedelta(days=(w_num-1)*7)
-                w_end = w_start + timedelta(days=7)
-                df_log['Detected_Date'] = pd.to_datetime(df_log['Detected_Time']).dt.date
-                filtered_df = df_log[(df_log['Detected_Date'] >= w_start) & (df_log['Detected_Date'] < w_end)]
-            except Exception:
-                filtered_df = df_log.copy()
-        else:
+    if "Week" in selected_report:
+        try:
+            w_num = int(selected_report.split()[1])
+            w_start = start_date + timedelta(days=(w_num-1)*7)
+            w_end = w_start + timedelta(days=7)
+            df_log['Detected_Date'] = pd.to_datetime(df_log['Detected_Time']).dt.date
+            filtered_df = df_log[(df_log['Detected_Date'] >= w_start) & (df_log['Detected_Date'] < w_end)]
+        except Exception:
             filtered_df = df_log.copy()
+    else:
+        filtered_df = df_log.copy()
 
-        # মেট্রিক্স
-        total_pumps = len(filtered_df)
-        super_trends = len(filtered_df[filtered_df['Outcome_Category'] == 'Super-Trend']) if 'Outcome_Category' in filtered_df else 0
-        flash_traps = len(filtered_df[filtered_df['Outcome_Category'] == 'Flash Trap']) if 'Outcome_Category' in filtered_df else 0
-        win_rate = (super_trends / total_pumps * 100) if total_pumps > 0 else 0.0
+    # মেট্রিক্স
+    total_pumps = len(filtered_df)
+    super_trends = len(filtered_df[filtered_df['Outcome_Category'] == 'Super-Trend']) if 'Outcome_Category' in filtered_df else 0
+    flash_traps = len(filtered_df[filtered_df['Outcome_Category'] == 'Flash Trap']) if 'Outcome_Category' in filtered_df else 0
+    win_rate = (super_trends / total_pumps * 100) if total_pumps > 0 else 0.0
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Pumps Recorded", f"{total_pumps}")
-        m2.metric("Super-Trends (Hold)", f"{super_trends}", f"{win_rate:.1f}% Ratio")
-        m3.metric("Flash Traps (Dump)", f"{flash_traps}")
-        m4.metric("Avg Sustained Duration", "36.4h" if total_pumps > 0 else "0.0h")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Pumps Recorded", f"{total_pumps}")
+    m2.metric("Super-Trends (Hold)", f"{super_trends}", f"{win_rate:.1f}% Ratio")
+    m3.metric("Flash Traps (Dump)", f"{flash_traps}")
+    m4.metric("Avg Sustained Duration", "36.4h" if total_pumps > 0 else "0.0h")
 
-        st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-        if "Symbol" in filtered_df.columns:
-            filtered_df["Liquidity Heatmap"] = filtered_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
-            filtered_df["On-Chain Intel"] = filtered_df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{str(s).lower()}")
+    if "Symbol" in filtered_df.columns:
+        filtered_df["Liquidity Heatmap"] = filtered_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
+        filtered_df["On-Chain Intel"] = filtered_df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{str(s).lower()}")
 
-        st.dataframe(
-            filtered_df,
-            column_config={
-                "Detected_Price": st.column_config.NumberColumn("Entry Price ($)", format="$%.6f"),
-                "Current_Price": st.column_config.NumberColumn("Current Price ($)", format="$%.6f"),
-                "Peak_Price": st.column_config.NumberColumn("Peak ($)", format="$%.6f"),
-                "24h_Volume_USD": st.column_config.NumberColumn("24h Vol ($)", format="$%.2f"),
-                "Funding_Rate_Pct": st.column_config.NumberColumn("Funding Rate (%)", format="%.4f%%"),
-                "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-            },
-            use_container_width=True,
-            hide_index=True
-        )
+    st.dataframe(
+        filtered_df,
+        column_config={
+            "Detected_Price": st.column_config.NumberColumn("Entry Price ($)", format="$%.6f"),
+            "Current_Price": st.column_config.NumberColumn("Current Price ($)", format="$%.6f"),
+            "Peak_Price": st.column_config.NumberColumn("Peak ($)", format="$%.6f"),
+            "24h_Volume_USD": st.column_config.NumberColumn("24h Vol ($)", format="$%.2f"),
+            "Funding_Rate_Pct": st.column_config.NumberColumn("Funding Rate (%)", format="%.4f%%"),
+            "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+            "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
+        },
+        use_container_width=True,
+        hide_index=True
+    )
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        csv = filtered_df.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download Audit Ledger (CSV)",
-            data=csv,
-            file_name=f"pump_forensic_audit_{today_date}.csv",
-            mime="text/csv"
-        )
+    st.markdown("<br>", unsafe_allow_html=True)
+    csv = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Audit Ledger (CSV)",
+        data=csv,
+        file_name=f"pump_forensic_audit_{today_date}.csv",
+        mime="text/csv"
+    )
 
 # Footer
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe_allow_html=True)
