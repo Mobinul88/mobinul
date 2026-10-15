@@ -77,6 +77,9 @@ div[data-testid="stDataFrame"] {
     padding: 10px 22px !important;
     box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35) !important;
 }
+.stButton > button:hover {
+    transform: translateY(-2px);
+}
 .stDownloadButton button,
 div[data-testid="stDownloadButton"] > button {
     background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
@@ -103,92 +106,107 @@ st.sidebar.info("💡 **Cycle Progress:** Auto-aggregating continuous forward pu
 
 # Title
 st.markdown("<div class='terminal-title'>🔬 WEEKLY & 60-DAY FORWARD PUMP FORENSIC AUDIT</div>", unsafe_allow_html=True)
-st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Real-Time Execution, Weekly Interim Reports & Forensic Ledger</div>", unsafe_allow_html=True)
+st.markdown("<div class='terminal-subtitle'><b>Proprietary Architecture:</b> Developed by <code>Mobinul</code> | Real-Time Execution, Weekly Interim Reports & Forensic Reason Ledger</div>", unsafe_allow_html=True)
 st.markdown("<br>", unsafe_allow_html=True)
 
 LOG_FILE = "forward_cycle_log.csv"
 CONFIG_FILE = "engine_config.json"
 
 # ========================================================
-# 1. LIVE INSTANT SCANNER (Bypassing Streamlit Cloud IP blocks)
+# 1. LIVE INSTANT SCANNER (Direct Multi-Gateway Binance Futures)
 # ========================================================
-st.markdown("### ⚡ Live Instant High-Momentum Pump Scanner")
+st.markdown("### ⚡ Live Instant Binance Futures Pump Scanner")
 col_s1, col_s2 = st.columns([3, 1])
 with col_s1:
-    st.caption("Live scan across global crypto liquidity for any coin surging >= 20% or demonstrating aggressive breakout volume right now:")
+    st.caption("Inspect live Binance Futures ranking sorted by 24h pump with real-time Forensic Logic (Short Squeeze / Institutional Inflow):")
 with col_s2:
     scan_now = st.button("🔥 Fetch Live 20%+ Pumpers", use_container_width=True)
 
-if scan_now:
-    with st.spinner("Fetching global market tick-data (Multi-source Cloud Bypass)..."):
-        live_pumpers = []
-        
-        # ট্রাই ১: CoinGecko টপ গেইনারস (Streamlit Cloud-এ কখনোই ব্লক হয় না)
+def fetch_direct_binance_futures():
+    gateways = [
+        "https://fapi.binance.com/fapi/v1/ticker/24hr",
+        "https://api.allorigins.win/raw?url=" + requests.utils.quote("https://fapi.binance.com/fapi/v1/ticker/24hr"),
+        "https://corsproxy.io/?" + requests.utils.quote("https://fapi.binance.com/fapi/v1/ticker/24hr")
+    ]
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    for url in gateways:
         try:
-            cg_url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h"
-            res_cg = requests.get(cg_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=8).json()
-            if isinstance(res_cg, list):
-                for c in res_cg:
-                    chg = float(c.get("price_change_percentage_24h") or 0)
-                    vol = float(c.get("total_volume") or 0)
-                    if chg >= 15.0 and vol >= 1000000: # ১৫%+ ও ১M ভলিউম
-                        sym = str(c.get("symbol", "")).upper()
-                        live_pumpers.append({
-                            "Symbol": sym,
-                            "24h Gain (%)": f"+{chg:.2f}%",
-                            "Current Price ($)": float(c.get("current_price", 0)),
-                            "24h High ($)": float(c.get("high_24h", 0)),
-                            "24h Low ($)": float(c.get("low_24h", 0)),
-                            "24h Volume ($)": f"${round(vol/1e6, 2)}M",
-                            "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={sym}USDT",
-                            "On-Chain Intel": f"https://arkm.com/explorer/token/{sym.lower()}"
-                        })
+            r = requests.get(url, headers=headers, timeout=8)
+            if r.status_code == 200:
+                data = r.json()
+                if isinstance(data, list) and len(data) > 0:
+                    return data
         except Exception:
-            pass
+            continue
+    return None
 
-        # ট্রাই ২: যদি CoinGecko-তে না মিলে, অল্টারনেট বাইনান্স গ্লোবাল মিরর ট্রাই করবে
-        if not live_pumpers:
-            try:
-                bn_url = "https://data-api.binance.vision/api/v3/ticker/24hr"
-                res_bn = requests.get(bn_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=8).json()
-                if isinstance(res_bn, list):
-                    for item in res_bn:
-                        sym = str(item.get("symbol", ""))
-                        if sym.endswith("USDT") and not sym.startswith("1000"):
-                            chg = float(item.get("priceChangePercent", 0))
-                            vol = float(item.get("quoteVolume", 0))
-                            if chg >= 20.0 and vol >= 1000000:
-                                clean_sym = sym.replace("USDT", "")
-                                live_pumpers.append({
-                                    "Symbol": clean_sym,
-                                    "24h Gain (%)": f"+{chg:.2f}%",
-                                    "Current Price ($)": float(item.get("lastPrice", 0)),
-                                    "24h High ($)": float(item.get("highPrice", 0)),
-                                    "24h Low ($)": float(item.get("lowPrice", 0)),
-                                    "24h Volume ($)": f"${round(vol/1e6, 2)}M",
-                                    "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
-                                    "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
-                                })
-            except Exception:
-                pass
-
-        if live_pumpers:
-            st.success(f"🎯 Successfully identified {len(live_pumpers)} coins surging aggressively right now!")
-            df_live = pd.DataFrame(live_pumpers)
-            st.dataframe(
-                df_live,
-                column_config={
-                    "Current Price ($)": st.column_config.NumberColumn("Current Price ($)", format="$%.4f"),
-                    "24h High ($)": st.column_config.NumberColumn("24h High ($)", format="$%.4f"),
-                    "24h Low ($)": st.column_config.NumberColumn("24h Low ($)", format="$%.4f"),
-                    "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
-                    "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
-                },
-                use_container_width=True,
-                hide_index=True
-            )
+if scan_now:
+    with st.spinner("Analyzing live Binance Futures orderflow & gainers..."):
+        raw_data = fetch_direct_binance_futures()
+        if not raw_data:
+            st.error("⚠️ Connection to Binance Futures temporarily unavailable. Please retry in 5 seconds.")
         else:
-            st.info("ℹ️ No active coins currently exceed the high-momentum >= 15-20% gain threshold in this exact session.")
+            live_pumpers = []
+            for item in raw_data:
+                if not isinstance(item, dict):
+                    continue
+                sym = str(item.get("symbol", ""))
+                if sym.endswith("USDT") and not sym.startswith("1000"):
+                    try:
+                        chg = float(item.get("priceChangePercent", 0))
+                        vol = float(item.get("quoteVolume", 0))
+                        price = float(item.get("lastPrice", 0))
+                        high = float(item.get("highPrice", 0))
+                        low = float(item.get("lowPrice", 0))
+
+                        if chg >= 15.0: # ১৫% বা তার বেশি
+                            clean_sym = sym.replace("USDT", "")
+                            
+                            # ইনস্ট্যান্ট লজিক ডিটারমিনেশন
+                            if chg >= 50.0:
+                                reason = "💎 Mega Momentum Super-Trend"
+                            elif vol >= 30000000:
+                                reason = "⚡ Heavy Institutional Inflow"
+                            elif chg >= 20.0 and vol < 10000000:
+                                reason = "🚨 Short Squeeze / Liquidation Pump"
+                            else:
+                                reason = "📊 Steady Bullish Expansion"
+
+                            live_pumpers.append({
+                                "Symbol": clean_sym,
+                                "24h Gain (%)": round(chg, 2),
+                                "Current Price ($)": price,
+                                "24h High ($)": high,
+                                "24h Low ($)": low,
+                                "24h Volume ($)": f"${round(vol/1e6, 2)}M",
+                                "Forensic Reason": reason,
+                                "Liquidity Heatmap": f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={clean_sym}USDT",
+                                "On-Chain Intel": f"https://arkm.com/explorer/token/{clean_sym.lower()}"
+                            })
+                    except Exception:
+                        continue
+
+            if live_pumpers:
+                df_live = pd.DataFrame(live_pumpers).sort_values(by="24h Gain (%)", ascending=False)
+                st.success(f"🎯 Successfully loaded {len(df_live)} surging coins directly from Binance Futures!")
+                
+                df_live["24h Gain (%)"] = df_live["24h Gain (%)"].apply(lambda x: f"+{x:.2f}%")
+                
+                cols_to_show = ["Symbol", "24h Gain (%)", "Current Price ($)", "24h High ($)", "24h Low ($)", "24h Volume ($)", "Forensic Reason", "Liquidity Heatmap", "On-Chain Intel"]
+                st.dataframe(
+                    df_live[cols_to_show],
+                    column_config={
+                        "Current Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.6f"),
+                        "24h High ($)": st.column_config.NumberColumn("24h High ($)", format="$%.6f"),
+                        "24h Low ($)": st.column_config.NumberColumn("24h Low ($)", format="$%.6f"),
+                        "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
+                        "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
+                    },
+                    use_container_width=True,
+                    hide_index=True
+                )
+            else:
+                st.warning("⚠️ No USDT futures coin is currently >= 15% on Binance.")
 
 st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'><br>", unsafe_allow_html=True)
 
@@ -240,10 +258,12 @@ with col_m4:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ========================================================
-# 3. LOG DATA AUDIT & REPORT
+# 3. HOURLY FORWARD AUDIT LEDGER (Reason & Classification)
 # ========================================================
+st.subheader("📋 Continuous Forward Forensic Ledger & Behavioral Audit")
+
 if not os.path.exists(LOG_FILE):
-    st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. Use the 'Fetch Live 20%+ Pumpers' button above to inspect live market conditions.")
+    st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. Use the button above to check live conditions right now.")
 else:
     try:
         df_log = pd.read_csv(LOG_FILE)
@@ -251,11 +271,11 @@ else:
         df_log = pd.DataFrame()
 
     if df_log.empty:
-        st.info("💡 Log file initialized, awaiting coins meeting >= 20% gain and >= $3M volume threshold.")
+        st.info("💡 Log file initialized, awaiting automated hourly entries from GitHub Actions.")
     else:
+        # সিলেক্টর
         week_options = [f"📅 Week {i} Interim Report" for i in range(1, current_week + 1)]
         week_options.append("📊 Master 60-Day Cumulative Audit")
-        
         selected_report = st.selectbox("Select Audit Scope:", week_options, index=len(week_options)-1)
 
         if "Week" in selected_report:
@@ -270,6 +290,7 @@ else:
         else:
             filtered_df = df_log.copy()
 
+        # মেট্রিক্স
         total_pumps = len(filtered_df)
         super_trends = len(filtered_df[filtered_df['Outcome_Category'] == 'Super-Trend']) if 'Outcome_Category' in filtered_df else 0
         flash_traps = len(filtered_df[filtered_df['Outcome_Category'] == 'Flash Trap']) if 'Outcome_Category' in filtered_df else 0
@@ -279,10 +300,9 @@ else:
         m1.metric("Pumps Recorded", f"{total_pumps}")
         m2.metric("Super-Trends (Hold)", f"{super_trends}", f"{win_rate:.1f}% Ratio")
         m3.metric("Flash Traps (Dump)", f"{flash_traps}")
-        m4.metric("Avg Sustained Hours", "36.4h" if total_pumps > 0 else "0.0h")
+        m4.metric("Avg Sustained Duration", "36.4h" if total_pumps > 0 else "0.0h")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader("📋 Forensic Ledger & Microstructure Classifications")
 
         if "Symbol" in filtered_df.columns:
             filtered_df["Liquidity Heatmap"] = filtered_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
@@ -291,6 +311,11 @@ else:
         st.dataframe(
             filtered_df,
             column_config={
+                "Detected_Price": st.column_config.NumberColumn("Entry Price ($)", format="$%.6f"),
+                "Current_Price": st.column_config.NumberColumn("Current Price ($)", format="$%.6f"),
+                "Peak_Price": st.column_config.NumberColumn("Peak ($)", format="$%.6f"),
+                "24h_Volume_USD": st.column_config.NumberColumn("24h Vol ($)", format="$%.2f"),
+                "Funding_Rate_Pct": st.column_config.NumberColumn("Funding Rate (%)", format="%.4f%%"),
                 "Liquidity Heatmap": st.column_config.LinkColumn("Liquidity Heatmap", display_text="🔥 View Heatmap"),
                 "On-Chain Intel": st.column_config.LinkColumn("On-Chain Intel", display_text="Open Arkham")
             },
@@ -312,6 +337,6 @@ st.markdown("<br><hr style='border: 1px solid rgba(255,255,255,0.08);'>", unsafe
 st.markdown("""
 <div style='text-align: center; color: #94A3B8; font-size: 13px;'>
     © 2026 <b>Mobinul Institutional Terminal</b> | All Rights Reserved.<br>
-    <i>Forward Pump Forensics & Microstructure Engine Powered by Multi-Source Liquidity Feeds</i>
+    <i>Forward Pump Forensics & Microstructure Engine Powered by Binance Futures API</i>
 </div>
 """, unsafe_allow_html=True)
