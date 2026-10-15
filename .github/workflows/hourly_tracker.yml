@@ -16,7 +16,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,10 +31,16 @@ jobs:
         run: |
           python hourly_forward_tracker.py
 
+      - name: Check CSV File Content
+        run: |
+          echo "=== CSV Content Preview ==="
+          cat forward_cycle_log.csv || true
+
       - name: Commit and Push Log Data
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add forward_cycle_log.csv
-          git commit -m "Auto-update hourly forensic pump ledger [skip ci]" || echo "No changes to commit"
+          git status
+          git add -f forward_cycle_log.csv
+          git commit -m "Auto-update hourly forensic pump ledger [skip ci]" || echo "Nothing to commit"
           git push origin main
