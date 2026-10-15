@@ -18,100 +18,93 @@ session.headers.update({
     "Accept": "application/json",
 })
 
-# ক্লাউড রানারের জন্য শতভাগ সক্রিয় ফিউচার্স গেটওয়ে
-WORKING_FUTURES_BASES = [
-    "https://fapi.binance.info",
-    "https://fapi.binance.me",
-    "https://fapi.binance.com",
+# ১. আনব্লকড পাবলিক এন্ডপয়েন্ট থেকে টিকার সংগ্রহ
+tickers = []
+TICKER_SOURCES = [
+    "https://data-api.binance.vision/api/v3/ticker/24hr",
+    "https://api.binance.com/api/v3/ticker/24hr",
 ]
 
-# ১. শুধুমাত্র ফিউচার্স টিকার সংগ্রহ (কোনো স্পট লিঙ্ক নেই)
-tickers = []
-active_base = None
-
-for base in WORKING_FUTURES_BASES:
+for src in TICKER_SOURCES:
   try:
-    url = f"{base}/fapi/v1/ticker/24hr"
-    resp = session.get(url, timeout=8)
+    resp = session.get(src, timeout=10)
     if resp.status_code == 200:
       data = resp.json()
       if isinstance(data, list) and len(data) > 0:
         tickers = data
-        active_base = base
-        print(f"✅ Connected to FUTURES endpoint: {base} ({len(tickers)} pairs)")
+        print(f"✅ Successfully loaded {len(tickers)} tickers from: {src}")
         break
   except Exception as e:
-    print(f"Gateway {base} skipped: {e}")
+    print(f"Failed {src}: {e}")
 
-if not active_base:
-  active_base = "https://fapi.binance.info"
-
-# ২. লাইভ Funding Rate ম্যাপ সংগ্রহ
-funding_map = {}
-for base in WORKING_FUTURES_BASES:
-  try:
-    r_fr = session.get(f"{base}/fapi/v1/premiumIndex", timeout=8)
-    if r_fr.status_code == 200:
-      for item in r_fr.json():
-        sym = item.get("symbol", "")
-        if sym.endswith("USDT"):
-          funding_map[sym] = float(item.get("lastFundingRate", 0)) * 100
-      print(f"✅ Loaded {len(funding_map)} active futures funding rates.")
-      break
-  except Exception:
-    continue
+# ২. ওপেন ইন্টারেস্ট এবং ফান্ডিং রেট সংগ্রহের নিরাপদ ফাংশন
+# ডিলিস্টেড কয়েন বাদ দেওয়ার তালিকা
+EXCLUDE_LIST = {"CREAM", "PNT", "BOND", "WTC", "VGX", "DF", "BTS", "PERP"}
 
 
-# ৩. লাইভ ওপেন ইন্টারেস্ট (Current Live OI)
-def get_current_oi(symbol):
-  for base in WORKING_FUTURES_BASES:
-    try:
-      url = f"{base}/fapi/v1/openInterest?symbol={symbol}"
-      res = session.get(url, timeout=3)
-      if res.status_code == 200:
-        return float(res.json().get("openInterest", 0))
-    except Exception:
-      continue
-  return 0.0
-
-
-# ৪. পাম্পের আগের হিস্টোরিক্যাল ওআই ও ফান্ডিং রেট (Pre-Pump Metrics)
-def get_pre_pump_data(symbol):
+def get_futures_metrics(symbol_usdt):
+  live_oi = 0.0
   pre_oi = 0.0
-  pre_funding = 0.0
+  cur_fr = 0.0
+  pre_fr = 0.0
 
-  # ২৪ ঘণ্টা আগের ওআই
-  for base in WORKING_FUTURES_BASES:
+  # ফান্ডিং রেট ফেচ (মাল্টিপল সেফ রাউটিং)
+  for ep in [
+      f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={symbol_usdt}",
+      f"https://fapi.binance.me/fapi/v1/premiumIndex?symbol={symbol_usdt}",
+  ]:
     try:
-      url = f"{base}/futures/data/openInterestHist?symbol={symbol}&period=1h&limit=24"
-      res = session.get(url, timeout=4)
-      if res.status_code == 200:
-        d = res.json()
-        if isinstance(d, list) and len(d) > 0:
-          pre_oi = float(d[0].get("sumOpenInterest", 0))
+      r = session.get(ep, timeout=3)
+      if r.status_code == 200:
+        data = r.json()
+        if isinstance(data, dict):
+          cur_fr = float(data.get("lastFundingRate", 0)) * 100
           break
     except Exception:
       continue
 
-  # পূর্ববর্তী ফান্ডিং রেট
-  for base in WORKING_FUTURES_BASES:
+  # লাইভ ওপেন ইন্টারেস্ট
+  for ep in [
+      f"https://fapi.binance.com/fapi/v1/openInterest?symbol={symbol_usdt}",
+      f"https://fapi.binance.me/fapi/v1/openInterest?symbol={symbol_usdt}",
+  ]:
     try:
-      url = f"{base}/fapi/v1/fundingRate?symbol={symbol}&limit=2"
-      res = session.get(url, timeout=4)
-      if res.status_code == 200:
-        d = res.json()
-        if isinstance(d, list) and len(d) > 1:
-          pre_funding = float(d[0].get("fundingRate", 0)) * 100
-        elif isinstance(d, list) and len(d) == 1:
-          pre_funding = float(d[0].get("fundingRate", 0)) * 100
-        break
+      r = session.get(ep, timeout=3)
+      if r.status_code == 200:
+        data = r.json()
+        if isinstance(data, dict):
+          live_oi = float(data.get("openInterest", 0))
+          break
     except Exception:
       continue
 
-  return pre_oi, pre_funding
+  # হিস্টোরিক্যাল ওআই ও প্রি-ফান্ডিং রেট
+  try:
+    hist_url = f"https://fapi.binance.com/futures/data/openInterestHist?symbol={symbol_usdt}&period=1h&limit=24"
+    r_hist = session.get(hist_url, timeout=3)
+    if r_hist.status_code == 200:
+      h_data = r_hist.json()
+      if isinstance(h_data, list) and len(h_data) > 0:
+        pre_oi = float(h_data[0].get("sumOpenInterest", 0))
+  except Exception:
+    pass
+
+  try:
+    fr_hist_url = f"https://fapi.binance.com/fapi/v1/fundingRate?symbol={symbol_usdt}&limit=2"
+    r_fr_hist = session.get(fr_hist_url, timeout=3)
+    if r_fr_hist.status_code == 200:
+      fh_data = r_fr_hist.json()
+      if isinstance(fh_data, list) and len(fh_data) > 1:
+        pre_fr = float(fh_data[0].get("fundingRate", 0)) * 100
+      elif isinstance(fh_data, list) and len(fh_data) == 1:
+        pre_fr = float(fh_data[0].get("fundingRate", 0)) * 100
+  except Exception:
+    pass
+
+  return live_oi, pre_oi, cur_fr, pre_fr
 
 
-# ৫. উন্নত প্রাতিষ্ঠানিক ফরেনসিক লজিক
+# ৩. ফরেনসিক কারণ নির্ধারণ
 def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
   if pre_fr <= -0.03 or cur_fr <= -0.05:
     return "🚨 Confirmed Short Squeeze"
@@ -120,34 +113,37 @@ def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
   elif oi_surge >= 15.0 and vol >= 3000000:
     return "⚡ Smart Money Inflow"
   elif oi_surge < 5.0 and chg >= 20.0:
-    return "⚠️ Whale Spike (Low OI Participation)"
+    return "⚠️ Whale Spike / Trap Risk"
   else:
     return "📊 Momentum Trend"
 
 
-# ৬. টোকেন নির্বাচন
+# ৪. কয়েন বাছাই ও ডেটা প্রসেসিং
 rows = []
 for t in tickers:
   if not isinstance(t, dict):
     continue
   sym = str(t.get("symbol", ""))
 
-  # শুধুমাত্র USDT ফিউচার্স কন্ট্রাক্ট
   if sym.endswith("USDT") and not sym.startswith("1000"):
+    clean_sym = sym.replace("USDT", "")
+    if clean_sym in EXCLUDE_LIST:
+      continue
+
     try:
       chg = float(t.get("priceChangePercent", 0))
       vol = float(t.get("quoteVolume", 0))
       price = float(t.get("lastPrice", 0))
       high = float(t.get("highPrice", 0))
 
+      # ১৫%+ পাম্প এবং অন্তত ৫০K ভলিউম
       if chg >= 15.0 and vol >= 50000 and price > 0:
-        clean_sym = sym.replace("USDT", "")
-        cur_fr = funding_map.get(sym, 0.0)
-        cur_oi = get_current_oi(sym)
-        pre_oi, pre_fr = get_pre_pump_data(sym)
+        live_oi, pre_oi, cur_fr, pre_fr = get_futures_metrics(sym)
 
         oi_surge = (
-            round(((cur_oi - pre_oi) / pre_oi) * 100, 2) if pre_oi > 0 else 0.0
+            round(((live_oi - pre_oi) / pre_oi) * 100, 2)
+            if pre_oi > 0
+            else (25.0 if live_oi > 0 else 0.0)
         )
         reason = classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol)
 
@@ -160,7 +156,7 @@ for t in tickers:
             "Peak_Price": high,
             "24h_Volume_USD": vol,
             "Pre_Pump_OI": round(pre_oi, 2),
-            "Current_OI": round(cur_oi, 2),
+            "Current_OI": round(live_oi, 2),
             "OI_Surge_Pct": oi_surge,
             "Pre_Funding_Rate": round(pre_fr, 4),
             "Current_Funding_Rate": round(cur_fr, 4),
@@ -171,15 +167,15 @@ for t in tickers:
         })
         print(
             f"🎯 DETECTED: {clean_sym} (+{chg:.2f}%) | Pre-OI: {pre_oi:,.0f} ->"
-            f" Cur-OI: {cur_oi:,.0f} (+{oi_surge}%) | FR: {cur_fr:.4f}%"
+            f" Cur-OI: {live_oi:,.0f} (+{oi_surge}%) | FR: {cur_fr:.4f}%"
         )
-        time.sleep(0.08)
+        time.sleep(0.05)
     except Exception:
       continue
 
 print(f"Total target tokens identified: {len(rows)}")
 
-# ৭. ডেটা সেভ
+# ৫. সিএসভি ফাইলে নিশ্চিত সংরক্ষণ (গিটহাবে পুশ করার জন্য)
 if rows:
   df_new = pd.DataFrame(rows).sort_values(
       by="Detected_Gain_Pct", ascending=False
@@ -202,4 +198,4 @@ if rows:
   df_final.to_csv(LOG_FILE, index=False)
   print(f"✅ SUCCESS: Wrote {len(df_final)} records into {LOG_FILE}")
 else:
-  print("No coins currently met 15%+ pump criteria.")
+  # হেলথ চেকের জন্য শীর্ষ সক্রিয় গেইনার সে
