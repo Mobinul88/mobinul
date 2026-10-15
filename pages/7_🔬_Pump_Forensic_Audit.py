@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import os
 import json
+import time
 from datetime import datetime, date, timedelta
 
 st.set_page_config(
@@ -111,7 +112,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 LOG_FILE = "forward_cycle_log.csv"
 CONFIG_FILE = "engine_config.json"
-GITHUB_RAW_LOG = "https://raw.githubusercontent.com/Mobinul88/mobinul/main/forward_cycle_log.csv"
+# গিটহাব থেকে সরাসরি লাইভ রিড করার লিংক (ক্যাশ বাইপাস সহ)
+GITHUB_RAW_URL = f"https://raw.githubusercontent.com/Mobinul88/mobinul/main/forward_cycle_log.csv?nocache={int(time.time())}"
 
 # ========================================================
 # 1. 60-DAY ENGINE STATUS & CONTROL BAR
@@ -155,44 +157,50 @@ with col_m3:
         </div>
     """, unsafe_allow_html=True)
 with col_m4:
-    if st.button("🔄 Sync Log Cache", use_container_width=True):
+    if st.button("🔄 Force Refresh Cache", use_container_width=True):
         st.cache_data.clear()
+        st.rerun()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ========================================================
-# 2. LOAD FORWARD LOG DATA (Local File + GitHub Raw Sync Fallback)
+# 2. BULLETPROOF DATA LOADER (GitHub Live Direct Fetch)
 # ========================================================
-@st.cache_data(ttl=60)
-def load_audit_data():
-    # প্রথমে লোকাল ফাইল চেক করবে
+def load_forensic_ledger():
+    df = pd.DataFrame()
+    
+    # পদ্ধতি ১: সরাসরি গিটহাব লাইভ থেকে ক্যাশহীনভাবে ডেটা টানবে
+    try:
+        res = requests.get(GITHUB_RAW_URL, timeout=8)
+        if res.status_code == 200 and len(res.text.strip()) > 50:
+            import io
+            df = pd.read_csv(io.StringIO(res.text))
+            if not df.empty and len(df) > 0:
+                # লোকাল ফাইলে আপডেট করে রাখা
+                df.to_csv(LOG_FILE, index=False)
+                return df
+    except Exception:
+        pass
+
+    # পদ্ধতি ২: লোকাল ফাইল চেক করা
     if os.path.exists(LOG_FILE):
         try:
             df = pd.read_csv(LOG_FILE)
-            if not df.empty:
+            if not df.empty and len(df) > 0:
                 return df
         except Exception:
             pass
 
-    # লোকাল ফাইলে না থাকলে সরাসরি গিটহাব লাইভ লিংক থেকে ফেচ করবে
-    try:
-        df_git = pd.read_csv(GITHUB_RAW_LOG)
-        if not df_git.empty:
-            df_git.to_csv(LOG_FILE, index=False)
-            return df_git
-    except Exception:
-        pass
+    return df
 
-    return pd.DataFrame()
-
-df_log = load_audit_data()
+df_log = load_forensic_ledger()
 
 st.subheader("📋 Continuous Forward Forensic Ledger & Behavioral Audit")
 
-if df_log.empty:
-    st.info("💡 Forward log file is awaiting its next hourly cycle data. GitHub Actions is scheduled to commit at :32 min.")
+if df_log.empty or len(df_log) == 0 or "Symbol" not in df_log.columns:
+    st.info("💡 Forward log file (`forward_cycle_log.csv`) is awaiting its next hourly cycle data. GitHub Actions is scheduled to commit at :32 min.")
 else:
-    # সিলেক্টর
+    # রিপোর্ট সিলেক্টর
     week_options = [f"📅 Week {i} Interim Report" for i in range(1, current_week + 1)]
     week_options.append("📊 Master 60-Day Cumulative Audit")
     selected_report = st.selectbox("Select Audit Scope:", week_options, index=len(week_options)-1)
@@ -209,7 +217,7 @@ else:
     else:
         filtered_df = df_log.copy()
 
-    # মেট্রিক্স
+    # মেট্রিক্স ক্যালকুলেশন
     total_pumps = len(filtered_df)
     super_trends = len(filtered_df[filtered_df['Outcome_Category'] == 'Super-Trend']) if 'Outcome_Category' in filtered_df else 0
     flash_traps = len(filtered_df[filtered_df['Outcome_Category'] == 'Flash Trap']) if 'Outcome_Category' in filtered_df else 0
@@ -223,13 +231,16 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # লিঙ্ক কলাম
     if "Symbol" in filtered_df.columns:
         filtered_df["Liquidity Heatmap"] = filtered_df["Symbol"].apply(lambda s: f"https://www.coinglass.com/pro/futures/LiquidationHeatMap?symbol={s}USDT")
         filtered_df["On-Chain Intel"] = filtered_df["Symbol"].apply(lambda s: f"https://arkm.com/explorer/token/{str(s).lower()}")
 
+    # টেবিল প্রদর্শন
     st.dataframe(
         filtered_df,
         column_config={
+            "Detected_Gain_Pct": st.column_config.NumberColumn("Initial Gain (%)", format="+%.2f%%"),
             "Detected_Price": st.column_config.NumberColumn("Entry Price ($)", format="$%.6f"),
             "Current_Price": st.column_config.NumberColumn("Current Price ($)", format="$%.6f"),
             "Peak_Price": st.column_config.NumberColumn("Peak ($)", format="$%.6f"),
