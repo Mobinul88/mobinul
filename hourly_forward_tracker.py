@@ -2,126 +2,113 @@ import requests
 import pandas as pd
 import datetime
 import os
-import json
-import time
+import sys
 
 LOG_FILE = "forward_cycle_log.csv"
-CONFIG_FILE = "engine_config.json"
-BINANCE_FAPI_BASE = "https://fapi.binance.com"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+now = datetime.datetime.now()
+now_str = now.strftime("%Y-%m-%d %H:%M:%S")
+print(f"[{now_str}] Starting Binance Futures Forward Pump Forensic Scan...")
+
+url = "https://fapi.binance.com/fapi/v1/ticker/24hr"
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
-session = requests.Session()
-session.headers.update(HEADERS)
 
-def get_market_tickers():
-    url = f"{BINANCE_FAPI_BASE}/fapi/v1/ticker/24hr"
-    try:
-        r = session.get(url, timeout=10)
-        if r.status_code == 200:
-            return r.json()
-    except Exception as e:
-        print(f"Error fetching 24hr tickers: {e}")
-    return []
+try:
+    resp = requests.get(url, headers=headers, timeout=15)
+    tickers = resp.json()
+except Exception as e:
+    print(f"API Error: {e}")
+    sys.exit(1)
 
-def get_funding_and_oi(symbol):
-    funding_rate = 0.0
-    open_interest = 0.0
+if not isinstance(tickers, list) or len(tickers) == 0:
+    print(f"Failed to fetch tickers. Response: {tickers}")
+    sys.exit(1)
+
+print(f"Total tickers fetched: {len(tickers)}")
+
+# Funding rate & Open interest আনার ফাংশন
+def get_metrics(sym):
+    fr = 0.0
+    oi = 0.0
     try:
-        f_url = f"{BINANCE_FAPI_BASE}/fapi/v1/premiumIndex?symbol={symbol}"
-        fr_res = session.get(f_url, timeout=5).json()
-        funding_rate = float(fr_res.get("lastFundingRate", 0)) * 100
+        r_fr = requests.get(f"https://fapi.binance.com/fapi/v1/premiumIndex?symbol={sym}", headers=headers, timeout=5).json()
+        fr = float(r_fr.get("lastFundingRate", 0)) * 100
     except Exception:
         pass
-
     try:
-        oi_url = f"{BINANCE_FAPI_BASE}/fapi/v1/openInterest?symbol={symbol}"
-        oi_res = session.get(oi_url, timeout=5).json()
-        open_interest = float(oi_res.get("openInterest", 0))
+        r_oi = requests.get(f"https://fapi.binance.com/fapi/v1/openInterest?symbol={sym}", headers=headers, timeout=5).json()
+        oi = float(r_oi.get("openInterest", 0))
     except Exception:
         pass
+    return fr, oi
 
-    return funding_rate, open_interest
-
-def classify_pump_reason(chg_pct, funding_rate, vol_usd):
-    if funding_rate <= -0.05:
+# লজিক ক্লাসিফিকেশন
+def classify_reason(chg, fr, vol):
+    if fr <= -0.05:
         return "🚨 Short Squeeze (Heavy Neg Funding)"
-    elif chg_pct >= 40.0 and vol_usd >= 20000000:
-        return "💎 Institutional Mega Trend (Heavy Vol)"
-    elif vol_usd >= 5000000:
+    elif chg >= 40.0 and vol >= 20000000:
+        return "💎 Institutional Mega Trend"
+    elif vol >= 5000000:
         return "⚡ Aggressive Momentum Accumulation"
     else:
-        return "⚠️ Low-Float / Whale Spike"
+        return "⚠️ Low-Float / Spike"
 
-def run_hourly_forensic_scan():
-    now = datetime.datetime.now()
-    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{now_str}] Starting Hourly Binance Forward Pump Tracker...")
-
-    tickers = get_market_tickers()
-    if not tickers or not isinstance(tickers, list):
-        print("No ticker data received from Binance API.")
-        return
-
-    df_log = pd.DataFrame()
-    if os.path.exists(LOG_FILE):
+rows = []
+for t in tickers:
+    sym = t.get("symbol", "")
+    if sym.endswith("USDT") and not sym.startswith("1000"):
         try:
-            df_log = pd.read_csv(LOG_FILE)
-        except Exception:
-            df_log = pd.DataFrame()
+            chg = float(t.get("priceChangePercent", 0))
+            vol = float(t.get("quoteVolume", 0))
+            price = float(t.get("lastPrice", 0))
+            high = float(t.get("highPrice", 0))
 
-    new_entries = []
-    for item in tickers:
-        sym = item.get("symbol", "")
-        if not sym.endswith("USDT") or sym.startswith("1000"):
-            continue
-
-        clean_sym = sym.replace("USDT", "")
-
-        try:
-            chg = float(item.get("priceChangePercent", 0))
-            vol = float(item.get("quoteVolume", 0))
-            price = float(item.get("lastPrice", 0))
-            high_24h = float(item.get("highPrice", 0))
-
-            # ১৫%+ গেইন ও অন্তত ৫০,০০০ ভলিউম হলেই তাৎক্ষণিক রেকর্ড হবে
-            if chg >= 15.0 and vol >= 50000 and price > 0:
-                funding, oi = get_funding_and_oi(sym)
-                reason = classify_pump_reason(chg, funding, vol)
-
-                new_entries.append({
+            # ১৫%+ গেইন ও ৫০K ভলিউম
+            if chg >= 15.0 and vol >= 50000:
+                clean_sym = sym.replace("USDT", "")
+                fr, oi = get_metrics(sym)
+                reason = classify_reason(chg, fr, vol)
+                
+                rows.append({
                     "Detected_Time": now_str,
                     "Symbol": clean_sym,
                     "Detected_Gain_Pct": round(chg, 2),
                     "Detected_Price": price,
                     "Current_Price": price,
-                    "Peak_Price": high_24h,
+                    "Peak_Price": high,
                     "24h_Volume_USD": vol,
-                    "Funding_Rate_Pct": round(funding, 4),
+                    "Funding_Rate_Pct": round(fr, 4),
                     "Open_Interest": oi,
                     "Forensic_Reason": reason,
                     "Outcome_Category": "Analyzing...",
                     "Hours_Sustained": 1.0,
                     "Status": "ACTIVE_TRACKING"
                 })
+                print(f"-> Captured: {clean_sym} (+{chg:.2f}%) | Vol: ${round(vol/1e6, 2)}M | Reason: {reason}")
         except Exception:
             continue
 
-    if new_entries:
-        df_new = pd.DataFrame(new_entries)
-        # যদি ফাইল খালি থাকে বা নতুন হয়
-        if df_log.empty or "Symbol" not in df_log.columns:
-            df_final = df_new
-        else:
-            # ডুপ্লিকেট বাদ দিয়ে মার্জ করা
-            df_final = pd.concat([df_new, df_log], ignore_index=True).drop_duplicates(subset=["Symbol"], keep="first")
-        
-        # পার্সেন্টেজ অনুযায়ী বড় থেকে ছোট সাজানো
-        df_final = df_final.sort_values(by="Detected_Gain_Pct", ascending=False)
-        df_final.to_csv(LOG_FILE, index=False)
-        print(f"✅ SUCCESS: Wrote {len(df_final)} coins into {LOG_FILE}")
-    else:
-        print("ℹ️ No 15%+ gainers detected.")
+print(f"Total target coins identified: {len(rows)}")
 
-if __name__ == "__main__":
-    run_hourly_forensic_scan()
+if rows:
+    df_new = pd.DataFrame(rows).sort_values(by="Detected_Gain_Pct", ascending=False)
+    
+    # বিদ্যমান ফাইল থাকলে মার্জ করবে
+    if os.path.exists(LOG_FILE):
+        try:
+            df_old = pd.read_csv(LOG_FILE)
+            if not df_old.empty and "Symbol" in df_old.columns:
+                df_final = pd.concat([df_new, df_old], ignore_index=True).drop_duplicates(subset=["Symbol"], keep="first")
+            else:
+                df_final = df_new
+        except Exception:
+            df_final = df_new
+    else:
+        df_final = df_new
+
+    # ফাইল রাইট
+    df_final.to_csv(LOG_FILE, index=False)
+    print(f"SUCCESS: Successfully saved {len(df_final)} coins into {LOG_FILE}")
+else:
+    print("No coins currently met the criteria.")
