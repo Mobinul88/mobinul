@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install requests pandas ccxt
+          pip install requests pandas
 
       - name: Run Forensic Tracker
         run: |
