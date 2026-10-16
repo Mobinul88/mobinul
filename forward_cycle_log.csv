@@ -1,7 +1,7 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-10-15 23:09:27,BAT,27.93,0.218,0.218,0.2216,9758907.5528,0.0,0.0,0.0,0.0,0.0,⚠️ Spot Spike / Low Futures Liquidity,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-15 23:09:27,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-15 23:09:27,CYPHB,16.73,3.0,3.0,3.08,456081.646,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-16 01:32:57,BAT,24.39,0.2086,0.2086,0.2236,10429565.3448,0.0,0.0,0.0,0.0,0.0,⚠️ Spot Spike / Low Futures Liquidity,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-16 01:32:57,CYPHB,18.11,3.0,3.0,3.08,486373.345,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-16 01:32:57,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-15 23:09:27,ANIME,15.07,0.00336,0.00336,0.00393,7602111.424998,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-15 21:27:53,STRK,16.38,0.08936,0.08936,0.09874,63986743.5104509,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-15 21:27:53,NXPC,15.37,0.2297,0.2297,0.3003,9221824.625,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
