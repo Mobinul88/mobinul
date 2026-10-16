@@ -15,7 +15,6 @@ session.headers.update({
     "Accept": "application/json"
 })
 
-# বাইনান্সের ফিউচার্স গেটওয়ে
 BINANCE_FUTURES_URLS = [
     "https://fapi.binance.com",
     "https://fapi.binance.me",
@@ -33,11 +32,9 @@ def make_binance_request(endpoint):
             continue
     return None
 
-# ১. বাইনান্স ফিউচার্স ২৪ ঘণ্টার টিকার সরাসরি সংগ্রহ
 print("Fetching 24hr Binance Futures tickers...")
 raw_tickers = make_binance_request("/fapi/v1/ticker/24hr")
 
-# ব্যাকআপ মিরর
 if not raw_tickers or not isinstance(raw_tickers, list):
     try:
         alt_url = "https://data-api.binance.vision/api/v3/ticker/24hr"
@@ -50,7 +47,6 @@ if not raw_tickers or not isinstance(raw_tickers, list):
 tickers = raw_tickers if isinstance(raw_tickers, list) else []
 print(f"✅ Loaded {len(tickers)} tickers from Binance.")
 
-# ২. বাইনান্স ফিউচার্স লাইভ ফান্ডিং রেট ম্যাপ
 funding_map = {}
 premium_data = make_binance_request("/fapi/v1/premiumIndex")
 if premium_data and isinstance(premium_data, list):
@@ -62,23 +58,19 @@ if premium_data and isinstance(premium_data, list):
 
 EXCLUDE_LIST = {"CREAM", "PNT", "BOND", "WTC", "VGX", "DF", "BTS", "PERP", "USDC", "FDUSD"}
 
-# ৩. বাইনান্সের নিজস্ব ফিউচার্স ওআই ও হিস্টোরিক্যাল মেট্রিক্স
 def get_binance_exact_metrics(symbol_usdt):
     live_oi = 0.0
     pre_oi = 0.0
     pre_fr = 0.0
     
-    # লাইভ ওপেন ইন্টারেস্ট
     oi_data = make_binance_request(f"/fapi/v1/openInterest?symbol={symbol_usdt}")
     if oi_data and isinstance(oi_data, dict):
         live_oi = float(oi_data.get("openInterest", 0.0) or 0.0)
 
-    # ২৪ ঘণ্টা আগের ওপেন ইন্টারেস্ট
     oi_hist = make_binance_request(f"/futures/data/openInterestHist?symbol={symbol_usdt}&period=1h&limit=24")
     if oi_hist and isinstance(oi_hist, list) and len(oi_hist) > 0:
         pre_oi = float(oi_hist[0].get("sumOpenInterest", 0.0) or 0.0)
 
-    # আগের সাইকেলের ফান্ডিং রেট
     fr_hist = make_binance_request(f"/fapi/v1/fundingRate?symbol={symbol_usdt}&limit=2")
     if fr_hist and isinstance(fr_hist, list):
         if len(fr_hist) > 1:
@@ -88,7 +80,6 @@ def get_binance_exact_metrics(symbol_usdt):
 
     return live_oi, pre_oi, pre_fr
 
-# ৪. ফরেনসিক অ্যানালাইসিস লজিক
 def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
     if pre_fr <= -0.03 or cur_fr <= -0.05:
         return "🚨 Confirmed Short Squeeze"
@@ -101,7 +92,6 @@ def classify_forensic(chg, cur_fr, pre_fr, oi_surge, vol):
     else:
         return "📊 Momentum Trend"
 
-# ৫. কয়েন ফিল্টারিং
 rows = []
 for t in tickers:
     if not isinstance(t, dict):
@@ -119,7 +109,6 @@ for t in tickers:
             price = float(t.get("lastPrice", 0.0))
             high = float(t.get("highPrice", 0.0))
             
-            # ১৫%+ গেইন ও ৫০K ভলিউম ফিল্টার
             if chg >= 15.0 and vol >= 50000 and price > 0:
                 cur_fr = funding_map.get(sym, 0.0)
                 live_oi, pre_oi, pre_fr = get_binance_exact_metrics(sym)
@@ -158,7 +147,6 @@ for t in tickers:
 
 print(f"Total target tokens processed: {len(rows)}")
 
-# ৬. ফাইলে সংরক্ষণ
 if rows:
     df_new = pd.DataFrame(rows).sort_values(by="Detected_Gain_Pct", ascending=False)
     if os.path.exists(LOG_FILE):
