@@ -1,8 +1,8 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-10-23 22:26:50,ARK,28.12,0.2255,0.2255,0.2419,9897304.8211,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-23 22:26:50,ERA,22.07,0.0791,0.0791,0.0893,11984699.54967,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-23 22:26:50,AVA,17.85,0.4252,0.4252,0.4359,3945073.34129,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-23 22:26:50,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-24 00:53:08,ERA,34.81,0.091,0.091,0.0912,13951924.32624,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-24 00:53:08,ARK,23.34,0.2204,0.2204,0.2419,10746707.5088,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-24 00:53:08,AVA,19.27,0.4313,0.4313,0.4438,4724968.68961,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-24 00:53:08,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-23 22:26:50,LA,15.31,0.0625,0.0625,0.0633,2475456.15692,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-23 13:39:57,SOPH,19.51,0.00196,0.00196,0.00225,4856824.5799,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-23 07:47:39,BMT,29.94,0.02695,0.02695,0.03015,17336593.89162,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
