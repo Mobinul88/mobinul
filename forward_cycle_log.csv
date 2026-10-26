@@ -1,6 +1,8 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-10-26 20:02:41,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-26 20:02:41,CHIP,17.25,0.05303,0.05303,0.05725,11767904.87334,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-26 23:58:01,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-26 23:58:01,PARTI,16.52,0.0388,0.0388,0.039,2363165.97286,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-26 23:58:01,SYN,16.0,0.17988,0.17988,0.18311,1647828.112754,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-10-26 23:58:01,CHIP,15.91,0.051,0.051,0.05725,12950818.5068,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-26 20:02:41,BEAMX,15.38,0.003308,0.003308,0.003544,6268394.9729,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-26 14:26:59,BANK,20.09,0.0281,0.0281,0.0288,4024995.12779,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-26 14:26:59,QNT,16.47,214.52,214.52,223.96,35469366.83634,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
@@ -35,7 +37,6 @@ Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,2
 2026-10-21 19:26:25,ENA,15.23,0.2194,0.2194,0.226,49143279.869858,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-21 15:27:19,W,22.89,0.016,0.016,0.01614,7003864.214914,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-21 15:27:19,OPN,17.61,0.0561,0.0561,0.0576,1627253.63541,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-21 10:24:15,PARTI,35.49,0.0397,0.0397,0.0403,4677342.47793,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-21 10:24:15,SC,22.52,0.000925,0.000925,0.000965,1487800.1786,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-21 10:24:15,BNCB,16.14,5.47,5.47,5.56,5748675.205,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-21 05:05:15,COMP,22.97,26.07,26.07,29.3,13684008.93644,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
