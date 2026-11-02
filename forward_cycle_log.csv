@@ -1,5 +1,6 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-11-02 00:55:53,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-02 07:52:36,SOPH,21.13,0.00172,0.00172,0.00181,4969350.945,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-02 07:52:36,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-01 09:28:07,牛来,28.04,0.06835,0.06835,0.07222,8650707.49566,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-01 09:28:07,G,21.41,0.00397,0.00397,0.00441,5119977.104,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-01 09:28:07,POWR,20.91,0.0688,0.0688,0.073,2733032.3238,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
@@ -13,7 +14,6 @@ Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,2
 2026-10-31 15:26:07,RSR,19.3,0.001694,0.001694,0.00174,5057302.3945218,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-31 15:26:07,RED,17.67,0.1465,0.1465,0.1585,2851592.89425,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-31 08:37:13,CVC,15.19,0.02321,0.02321,0.02396,908421.62989,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-31 01:43:30,SOPH,70.4,0.00213,0.00213,0.0026,9923202.05341,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-31 01:43:30,NIL,23.58,0.08177,0.08177,0.08274,7432408.772775,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-31 01:43:30,OP,23.45,0.1211,0.1211,0.1225,10184693.92835,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-31 01:43:30,WOO,19.21,0.01154,0.01154,0.01188,915096.771582,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
