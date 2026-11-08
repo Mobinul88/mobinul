@@ -1,5 +1,6 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-11-08 07:38:34,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-08 15:27:35,HOT,23.76,0.000448,0.000448,0.000526,6156846.141695,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-08 15:27:35,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-08 00:49:08,MITO,19.53,0.00814,0.00814,0.0086,4934287.978686,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-08 00:49:08,MET,15.79,0.3198,0.3198,0.3362,6674141.33249,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-07 21:00:10,ONE,47.63,0.002365,0.002365,0.002476,43475107.9986006,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
@@ -23,7 +24,6 @@ Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,2
 2026-11-05 00:27:23,LSK,16.73,0.2051,0.2051,0.2146,8380711.96485,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-05 00:27:23,INIT,15.36,0.14141,0.14141,0.14899,4010053.246839,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-04 03:07:44,BMT,35.27,0.02957,0.02957,0.03159,18487829.195789,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-11-03 23:32:03,HOT,30.14,0.00057,0.00057,0.000596,11211781.71731,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-03 23:32:03,RUNE,15.43,0.636,0.636,0.665,10383541.2442,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-03 23:32:03,SHAZB,15.4,24.21,24.21,24.59,506647.603,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-03 01:42:10,HAEDAL,17.69,0.02867,0.02867,0.03,6185261.746844,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
