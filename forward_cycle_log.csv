@@ -1,6 +1,6 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
-2026-11-14 17:14:40,SOPH,23.53,0.00231,0.00231,0.00261,20223748.5495,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-11-14 17:14:40,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-14 21:37:39,SOPH,24.14,0.00216,0.00216,0.00261,21581887.68495,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-14 21:37:39,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-14 10:44:15,SHELL,59.27,0.03093,0.03093,0.05163,36824605.955396,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-14 10:44:15,DODO,16.79,0.03402,0.03402,0.03555,6988317.303214,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-14 10:44:15,MITO,15.24,0.00741,0.00741,0.0082,2663445.302553,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
