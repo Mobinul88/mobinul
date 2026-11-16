@@ -1,8 +1,9 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
+2026-11-16 20:36:44,HUMA,55.56,0.01008,0.01008,0.01014,9285557.3721,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-16 20:36:44,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-16 09:58:46,RARE,82.88,0.01602,0.01602,0.01687,18448050.469322,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-16 09:58:46,GLMR,28.16,0.007182,0.007182,0.00852,6102100.2130714,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-16 09:58:46,WIN,22.2,5.575e-05,5.575e-05,5.825e-05,924675.44386529,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-11-16 09:58:46,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-15 17:18:57,INIT,23.24,0.12018,0.12018,0.1477,19800965.890627,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-15 02:00:47,SOPH,36.26,0.00233,0.00233,0.00261,24022515.2133,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-14 10:44:15,SHELL,59.27,0.03093,0.03093,0.05163,36824605.955396,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
@@ -76,7 +77,6 @@ Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,2
 2026-10-28 14:13:48,WENB,15.17,7.06,7.06,7.29,648072.35,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-28 07:00:08,USARB,18.13,10.49,10.49,10.5,226785.6133,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-28 00:37:15,BANK,23.44,0.0316,0.0316,0.0336,9542206.3218,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-10-28 00:37:15,HUMA,17.2,0.02582,0.02582,0.02866,11782684.08337,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-27 16:46:24,BREV,19.22,0.0949,0.0949,0.0974,3586448.41622,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-27 10:45:00,SYN,21.87,0.1892,0.1892,0.20455,6216235.923166,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-10-26 23:58:01,CHIP,15.91,0.051,0.051,0.05725,12950818.5068,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
