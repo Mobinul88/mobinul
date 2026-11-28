@@ -1,7 +1,8 @@
 Detected_Time,Symbol,Detected_Gain_Pct,Detected_Price,Current_Price,Peak_Price,24h_Volume_USD,Pre_Pump_OI,Current_OI,OI_Surge_Pct,Pre_Funding_Rate,Current_Funding_Rate,Forensic_Reason,Outcome_Category,Hours_Sustained,Status,Funding_Rate_Pct,Open_Interest
+2026-11-28 14:25:00,ACE,32.2,0.0973,0.0973,0.115,10938596.55056,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
+2026-11-28 14:25:00,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-28 04:49:20,PORTAL,37.89,0.01714,0.01714,0.05619,99056780.136743,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-28 04:49:20,CFG,31.75,0.0693,0.0693,0.0735,10757497.55464,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
-2026-11-28 04:49:20,KDA,17.65,0.006,0.006,0.0072,343775.052416,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-28 04:49:20,ROBO,17.59,0.00361,0.00361,0.00394,2967487.97286,0.0,0.0,0.0,0.0,0.0,📊 Momentum Trend,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-27 22:48:55,HAEDAL,30.24,0.02356,0.02356,0.031,21881913.973615,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
 2026-11-27 22:48:55,THE,29.8,0.0331,0.0331,0.0456,5259079.55064,0.0,0.0,0.0,0.0,0.0,⚠️ Spot/Whale Manipulated,Analyzing...,1.0,ACTIVE_TRACKING,,
